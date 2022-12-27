@@ -55,7 +55,7 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 	}
 
 	var identity domain.Identity
-	identity, err = handler.authService.CreateSession(c, user.ID, c.RemoteIP())
+	identity, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -92,7 +92,7 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 	}
 
 	var identity domain.Identity
-	identity, err = handler.authService.CreateSession(c, user.ID, c.RemoteIP())
+	identity, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
 		return
