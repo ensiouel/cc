@@ -68,7 +68,7 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 		"/", "localhost", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": 1,
+		"response": user,
 	})
 }
 
@@ -105,7 +105,7 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 		"/", "localhost", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": 1,
+		"response": user,
 	})
 }
 
