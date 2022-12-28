@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
-	"time"
 )
 
 type UserHandler struct {
@@ -61,14 +60,11 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("refresh_token", session.RefreshToken.String(), int(24*time.Hour),
+	c.SetCookie("refresh_token", session.RefreshToken.String(), 86400,
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": domain.Identity{
-			UserID:      session.UserID,
-			AccessToken: session.AccessToken,
-		},
+		"response": session,
 	})
 }
 
@@ -102,10 +98,7 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": domain.Identity{
-			UserID:      session.UserID,
-			AccessToken: session.AccessToken,
-		},
+		"response": session,
 	})
 }
 
@@ -134,10 +127,7 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": domain.Identity{
-			UserID:      session.UserID,
-			AccessToken: session.AccessToken,
-		},
+		"response": session,
 	})
 }
 
