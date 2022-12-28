@@ -62,10 +62,10 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 	}
 
 	c.SetCookie("access_token", identity.AccessToken, int(24*time.Hour),
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.SetCookie("refresh_token", identity.RefreshToken.String(), int(24*time.Hour),
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": user,
@@ -99,10 +99,10 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 	}
 
 	c.SetCookie("access_token", identity.AccessToken, 86400,
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.SetCookie("refresh_token", identity.RefreshToken.String(), 86400,
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": user,
@@ -131,10 +131,10 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 	}
 
 	c.SetCookie("access_token", identity.AccessToken, 86400,
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.SetCookie("refresh_token", identity.RefreshToken.String(), 86400,
-		"/", "localhost", false, true)
+		"/", "ensiouel.ru", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": 1,
