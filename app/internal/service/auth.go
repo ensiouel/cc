@@ -12,8 +12,8 @@ import (
 )
 
 type AuthService interface {
-	CreateSession(ctx context.Context, userID uuid.UUID, ip string) (domain.Identity, error)
-	UpdateSession(ctx context.Context, refreshToken uuid.UUID) (domain.Identity, error)
+	CreateSession(ctx context.Context, userID uuid.UUID, ip string) (domain.Session, error)
+	UpdateSession(ctx context.Context, refreshToken uuid.UUID) (domain.Session, error)
 	ParseToken(token string) (*jwt.Token, error)
 }
 
@@ -27,13 +27,13 @@ func NewAuthService(storage storage.AuthStorage, signingKey string, expirationTi
 	return &authService{storage: storage, signingKey: signingKey, expirationTime: expirationTime}
 }
 
-func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID, ip string) (identity domain.Identity, err error) {
+func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID, ip string) (session domain.Session, err error) {
 	now := time.Now()
 
 	var accessToken string
 	accessToken, err = createToken(userID, service.signingKey, now.Add(service.expirationTime))
 
-	session := model.Session{
+	sssn := model.Session{
 		ID:           uuid.New(),
 		UserID:       userID,
 		RefreshToken: uuid.New(),
@@ -41,16 +41,17 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	err = service.storage.CreateSession(ctx, session)
+	err = service.storage.CreateSession(ctx, sssn)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
-			return identity, apperr.SetScope("create session")
+			return session, apperr.SetScope("create session")
 		}
 
 		return
 	}
 
-	identity = domain.Identity{
+	session = domain.Session{
+		UserID:       session.UserID,
 		AccessToken:  accessToken,
 		RefreshToken: session.RefreshToken,
 	}
@@ -58,12 +59,12 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 	return
 }
 
-func (service *authService) UpdateSession(ctx context.Context, refreshToken uuid.UUID) (identity domain.Identity, err error) {
-	var session model.Session
-	session, err = service.storage.GetSessionByRefreshToken(ctx, refreshToken)
+func (service *authService) UpdateSession(ctx context.Context, refreshToken uuid.UUID) (session domain.Session, err error) {
+	var sssn model.Session
+	sssn, err = service.storage.GetSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
-			return identity, apperr.SetScope("update session")
+			return session, apperr.SetScope("update session")
 		}
 
 		return
@@ -72,24 +73,25 @@ func (service *authService) UpdateSession(ctx context.Context, refreshToken uuid
 	now := time.Now()
 
 	var accessToken string
-	accessToken, err = createToken(session.UserID, service.signingKey, now.Add(service.expirationTime))
+	accessToken, err = createToken(sssn.UserID, service.signingKey, now.Add(service.expirationTime))
 	if err != nil {
 		return
 	}
 
-	session.RefreshToken = uuid.New()
-	session.UpdatedAt = now
+	sssn.RefreshToken = uuid.New()
+	sssn.UpdatedAt = now
 
-	err = service.storage.UpdateSession(ctx, session)
+	err = service.storage.UpdateSession(ctx, sssn)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
-			return identity, apperr.SetScope("update session")
+			return session, apperr.SetScope("update session")
 		}
 
 		return
 	}
 
-	identity = domain.Identity{
+	session = domain.Session{
+		UserID:       session.UserID,
 		AccessToken:  accessToken,
 		RefreshToken: session.RefreshToken,
 	}

@@ -54,21 +54,21 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	var identity domain.Identity
-	identity, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
+	var session domain.Session
+	session, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.SetCookie("access_token", identity.AccessToken, int(24*time.Hour),
-		"/", c.Request.Host, false, true)
-
-	c.SetCookie("refresh_token", identity.RefreshToken.String(), int(24*time.Hour),
+	c.SetCookie("refresh_token", session.RefreshToken.String(), int(24*time.Hour),
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": user,
+		"response": domain.Identity{
+			UserID:      session.UserID,
+			AccessToken: session.AccessToken,
+		},
 	})
 }
 
@@ -91,21 +91,21 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	var identity domain.Identity
-	identity, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
+	var session domain.Session
+	session, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.SetCookie("access_token", identity.AccessToken, 86400,
-		"/", c.Request.Host, false, true)
-
-	c.SetCookie("refresh_token", identity.RefreshToken.String(), 86400,
+	c.SetCookie("refresh_token", session.RefreshToken.String(), 86400,
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": user,
+		"response": domain.Identity{
+			UserID:      session.UserID,
+			AccessToken: session.AccessToken,
+		},
 	})
 }
 
@@ -123,21 +123,21 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	var identity domain.Identity
-	identity, err = handler.authService.UpdateSession(c, refreshToken)
+	var session domain.Session
+	session, err = handler.authService.UpdateSession(c, refreshToken)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.SetCookie("access_token", identity.AccessToken, 86400,
-		"/", c.Request.Host, false, true)
-
-	c.SetCookie("refresh_token", identity.RefreshToken.String(), 86400,
+	c.SetCookie("refresh_token", session.RefreshToken.String(), 86400,
 		"/", c.Request.Host, false, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": 1,
+		"response": domain.Identity{
+			UserID:      session.UserID,
+			AccessToken: session.AccessToken,
+		},
 	})
 }
 
