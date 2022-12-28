@@ -51,7 +51,7 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 	}
 
 	session = domain.Session{
-		UserID:       session.UserID,
+		UserID:       userID,
 		AccessToken:  accessToken,
 		RefreshToken: session.RefreshToken,
 	}
@@ -91,7 +91,7 @@ func (service *authService) UpdateSession(ctx context.Context, refreshToken uuid
 	}
 
 	session = domain.Session{
-		UserID:       session.UserID,
+		UserID:       sssn.UserID,
 		AccessToken:  accessToken,
 		RefreshToken: session.RefreshToken,
 	}
