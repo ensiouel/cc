@@ -122,40 +122,25 @@ func (storage *statsStorage) SelectMetrics(ctx context.Context, target string, s
 WITH RANGE (f, t, i) as (
     VALUES ($1::TIMESTAMPTZ, $2::TIMESTAMPTZ + INTERVAL '23 hour 59 minute', $3)
 ),
-clicks AS (
-	SELECT
-		shorten_id, ` + target + ` as name, date_trunc(RANGE.i, timestamp) as timestamp
-	FROM
-		clicks, RANGE
-	WHERE
-		shorten_id = $4 AND
-		timestamp BETWEEN RANGE.f AND RANGE.t
-),
-RANGE_SERIES AS (
-	SELECT
-		GENERATE_SERIES AS timestamp
-	FROM
-		RANGE,
-		GENERATE_SERIES (
-			(SELECT MIN(date_trunc(RANGE.i, timestamp)) FROM clicks),
-			(SELECT MAX(date_trunc(RANGE.i, timestamp)) FROM clicks),
-			(1 || RANGE.i)::interval
-		)
+select_clicks AS (
+    SELECT
+        shorten_id, ` + target + ` as name, date_trunc(RANGE.i, timestamp) as timestamp
+    FROM
+        clicks, RANGE
+    WHERE
+        shorten_id = $4 AND
+        timestamp BETWEEN RANGE.f AND RANGE.t
 )
 SELECT
     name,
     COUNT(shorten_id) as count,
-    RANGE_SERIES.timestamp as date
+    timestamp as date
 FROM
-    RANGE_SERIES
-LEFT JOIN
-    clicks
-ON
-    RANGE_SERIES.timestamp = clicks.timestamp
+    select_clicks
 GROUP BY
-    RANGE_SERIES.timestamp, shorten_id, name
+    shorten_id, timestamp, name
 ORDER BY
-    RANGE_SERIES.timestamp;
+    timestamp;
 `
 
 	err = storage.db.SelectContext(ctx, &stats, q, from, to, unit, shortenID)
