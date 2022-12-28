@@ -71,9 +71,9 @@ func (getShortenStats GetShortenStats) Validate() error {
 	}
 
 	switch getShortenStats.Unit {
-	case "day", "week", "month", "year":
+	case "minute", "hour", "day", "week", "month", "year":
 	default:
-		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (day, week, month, year)")
+		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (minute, hour, day, week, month, year)")
 	}
 
 	return nil
