@@ -3,6 +3,7 @@ package transport
 import (
 	"cc/app/internal/transport/middleware/errs"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -12,6 +13,8 @@ type Server struct {
 
 func New(handlers ...Handler) *Server {
 	router := gin.Default()
+
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	router.Use(errs.Middleware())
 
