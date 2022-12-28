@@ -31,10 +31,13 @@ func (service *userService) SignIn(ctx context.Context, request dto.Credentials)
 	var usr model.User
 	usr, err = service.storage.GetUserByName(ctx, request.Name)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return user, apperr.SetScope("sign in")
+		}
+
 		if errors.Is(err, apperror.ErrNotExists) {
 			return user, apperror.ErrInvalidCredentials.SetMessage("invalid name or password")
 		}
-
 		return
 	}
 
@@ -50,7 +53,11 @@ func (service *userService) SignUp(ctx context.Context, request dto.Credentials)
 	var exists bool
 	exists, err = service.storage.ExistsUserByName(ctx, request.Name)
 	if err != nil {
-		return user, apperror.ErrInternalError.SetError(err)
+		if apperr, ok := apperror.Internal(err); ok {
+			return user, apperr.SetScope("sign up")
+		}
+
+		return
 	} else if exists {
 		return user, apperror.ErrAlreadyExists.SetMessage("name is already exists")
 	}
@@ -68,6 +75,10 @@ func (service *userService) SignUp(ctx context.Context, request dto.Credentials)
 	}
 	err = service.storage.CreateUser(ctx, usr)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return user, apperr.SetScope("sign up")
+		}
+
 		return
 	}
 
@@ -78,6 +89,10 @@ func (service *userService) GetUserByID(ctx context.Context, id uuid.UUID) (user
 	var usr model.User
 	usr, err = service.storage.GetUserByID(ctx, id)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return user, apperr.SetScope("get user by id")
+		}
+
 		return
 	}
 
@@ -88,6 +103,10 @@ func (service *userService) GetUserByName(ctx context.Context, name string) (use
 	var usr model.User
 	usr, err = service.storage.GetUserByName(ctx, name)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return user, apperr.SetScope("get user by name")
+		}
+
 		return
 	}
 

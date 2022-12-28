@@ -36,6 +36,10 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 	}
 	err = service.storage.CreateClick(ctx, clck)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return apperr.SetScope("create click")
+		}
+
 		return
 	}
 
@@ -55,6 +59,10 @@ func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64
 	var clicks model.ClickStats
 	clicks, err = service.storage.SelectClicks(ctx, shortenID, from, to, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return clickStats, apperr.SetScope("get click stats")
+		}
+
 		return
 	}
 
@@ -80,6 +88,10 @@ func (service *statsService) GetClickSummaryStats(ctx context.Context, shortenID
 	var clickSummary int
 	clickSummary, err = service.storage.SelectSummaryClicks(ctx, shortenID, from, to)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return clickSummaryStats, apperr.SetScope("get click summary stats")
+		}
+
 		return
 	}
 
@@ -103,6 +115,10 @@ func (service *statsService) GetMetricStats(ctx context.Context, target string, 
 	var metrics model.MetricStats
 	metrics, err = service.storage.SelectMetrics(ctx, target, shortenID, from, to, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return metricStats, apperr.SetScope("get metric stats")
+		}
+
 		return
 	}
 
@@ -128,6 +144,10 @@ func (service *statsService) GetMetricSummaryStats(ctx context.Context, target s
 	var metrics model.MetricSummaryStats
 	metrics, err = service.storage.SelectSummaryMetrics(ctx, target, shortenID, from, to)
 	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return metricSummaryStats, apperr.SetScope("get metric summary stats")
+		}
+
 		return
 	}
 
