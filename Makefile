@@ -1,3 +1,9 @@
+build:
+	go build -o cc app/cmd/main.go
+
+run:
+	./cc
+
 docker-build:
 	docker build --tag cc .
 
