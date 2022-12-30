@@ -39,7 +39,7 @@ func (app *App) Run() {
 
 	cache := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "yG73Ep1U",
+		Password: "",
 		DB:       0,
 	})
 
