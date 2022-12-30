@@ -19,14 +19,15 @@ func New() (cfg Config) {
 }
 
 type Config struct {
-	Server   Server   `yaml:"server"`
-	Postgres Postgres `yaml:"postgres"`
-	Auth     Auth     `yaml:"auth"`
-	Shorten  Shorten  `yaml:"shorten"`
+	Server     Server     `yaml:"server"`
+	Postgres   Postgres   `yaml:"postgres"`
+	Auth       Auth       `yaml:"auth"`
+	Shorten    Shorten    `yaml:"shorten"`
+	Prometheus Prometheus `yaml:"prometheus"`
 }
 
 type Server struct {
-	Addr string `yaml:"addr" env:"HOST_ADDR" env-default:":8080"`
+	Addr string `yaml:"addr" env:"HOST_ADDR" env-default:":8081"`
 }
 
 type Postgres struct {
@@ -42,5 +43,9 @@ type Auth struct {
 }
 
 type Shorten struct {
-	Host string `yaml:"host"`
+	Host string `yaml:"host" env:"SHORTEN_HOST"`
+}
+
+type Prometheus struct {
+	Addr string `yaml:"addr" env:"PROMETHEUS_ADDR" env-default:":8082"`
 }
