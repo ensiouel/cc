@@ -7,11 +7,14 @@ import (
 	"cc/app/internal/model"
 	"cc/app/internal/storage"
 	"context"
+	"github.com/mileusna/useragent"
+	"net/url"
 	"time"
 )
 
 type StatsService interface {
 	CreateClick(ctx context.Context, request dto.CreateClick) error
+	CreateClickByUserAgent(ctx context.Context, shortenID uint64, userAgent, referer string) error
 	GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.ClickStats, error)
 	GetClickSummaryStats(ctx context.Context, shortenID uint64, request dto.GetShortenSummaryStats) (domain.ClickSummaryStats, error)
 	GetMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenStats) (domain.MetricStats, error)
@@ -44,6 +47,46 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 	}
 
 	return
+}
+
+func (service *statsService) CreateClickByUserAgent(ctx context.Context, shortenID uint64, ua, referer string) (err error) {
+	userAgent := useragent.Parse(ua)
+
+	var platform, os string
+
+	switch {
+	case userAgent.Mobile:
+		platform = "Mobile"
+	case userAgent.Desktop:
+		platform = "Desktop"
+	case userAgent.Tablet:
+		platform = "Tablet"
+	default:
+		platform = "Unknown"
+	}
+
+	os = userAgent.OS
+	if os == "" {
+		os = "Unknown"
+	}
+
+	referrer, _ := url.Parse(referer)
+	if referrer.Host == "" {
+		referrer.Host = "Unknown"
+	}
+
+	err = service.CreateClick(ctx, dto.CreateClick{
+		ShortenID: shortenID,
+		Platform:  platform,
+		OS:        os,
+		Referrer:  referrer.Host,
+		Timestamp: time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (clickStats domain.ClickStats, err error) {
