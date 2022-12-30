@@ -7,7 +7,14 @@ import (
 	"cc/app/internal/transport"
 	"cc/app/internal/transport/handler"
 	"cc/app/pkg/postgres"
+	"context"
+	"errors"
+	"github.com/go-redis/redis/v9"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -30,6 +37,12 @@ func (app *App) Run() {
 		log.Fatal(err)
 	}
 
+	cache := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "yG73Ep1U",
+		DB:       0,
+	})
+
 	authStorage := storage.NewAuthStorage(db)
 	authService := service.NewAuthService(authStorage, app.cfg.Auth.SigningKey, 1*time.Hour)
 
@@ -38,16 +51,41 @@ func (app *App) Run() {
 
 	shortenStorage := storage.NewShortenStorage(db)
 	shortenService := service.NewShortenService(shortenStorage, app.cfg.Shorten.Host)
-	shortenHandler := handler.NewShortenHandler(shortenService, authService, statsService)
+	shortenHandler := handler.NewShortenHandler(
+		shortenService,
+		authService,
+		statsService,
+		cache,
+	)
 
 	userStorage := storage.NewUserStorage(db)
 	userService := service.NewUserService(userStorage)
-	userHandler := handler.NewUserHandler(userService, authService, shortenService)
+	userHandler := handler.NewUserHandler(
+		userService,
+		authService,
+		shortenService,
+	)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		err = http.ListenAndServe(app.cfg.Prometheus.Addr, promhttp.Handler())
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Println(err)
+		}
+	}()
 
 	server := transport.New(
 		shortenHandler,
 		userHandler,
 	)
+	go func() {
+		err = server.Run(app.cfg.Server.Addr)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Println(err)
+		}
+	}()
 
-	log.Fatal(server.Run(app.cfg.Server.Addr))
+	<-ctx.Done()
 }

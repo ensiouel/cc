@@ -1,18 +1,18 @@
 package handler
 
 import (
+	"cc/app/internal/apperror"
 	"cc/app/internal/domain"
 	"cc/app/internal/dto"
 	"cc/app/internal/service"
 	"cc/app/internal/transport"
 	"cc/app/internal/transport/middleware/auth"
 	"cc/app/pkg/base62"
+	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
-	"github.com/mileusna/useragent"
-	"log"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -20,10 +20,11 @@ type ShortenHandler struct {
 	shortenService service.ShortenService
 	authService    service.AuthService
 	statsService   service.StatsService
+	cache          *redis.Client
 }
 
-func NewShortenHandler(shortenService service.ShortenService, authService service.AuthService, statsService service.StatsService) transport.Handler {
-	return &ShortenHandler{shortenService: shortenService, authService: authService, statsService: statsService}
+func NewShortenHandler(shortenService service.ShortenService, authService service.AuthService, statsService service.StatsService, cache *redis.Client) transport.Handler {
+	return &ShortenHandler{shortenService: shortenService, authService: authService, statsService: statsService, cache: cache}
 }
 
 func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
@@ -42,62 +43,42 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 }
 
 func (handler *ShortenHandler) Redirect(c *gin.Context) {
-	shortenKey := c.Param("key")
+	key := c.Param("key")
 
-	shortenID, err := base62.Decode(shortenKey)
+	shortenID, err := base62.Decode(key)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	var shorten domain.Shorten
-	shorten, err = handler.shortenService.GetShortenByID(c, shortenID)
-	if err != nil {
-		c.Status(http.StatusNotFound)
+	var longURL string
+
+	longURL, err = handler.cache.Get(c, "cache:"+key).Result()
+	if err != nil && errors.Is(err, redis.Nil) == false {
+		_ = c.Error(apperror.ErrInternalError.SetError(err))
 		return
 	}
 
-	userAgent := useragent.Parse(c.Request.Header.Get("User-Agent"))
-
-	var platform string
-
-	switch {
-	case userAgent.Mobile:
-		platform = "Mobile"
-	case userAgent.Desktop:
-		platform = "Desktop"
-	case userAgent.Tablet:
-		platform = "Tablet"
-	default:
-		platform = "Unknown"
-	}
-
-	var os string
-	os = userAgent.OS
-	if os == "" {
-		os = "Unknown"
-	}
-
-	referrer, _ := url.Parse(c.Request.Referer())
-	if referrer.Host == "" {
-		referrer.Host = "Unknown"
-	}
-
-	if !userAgent.Bot {
-		err = handler.statsService.CreateClick(c, dto.CreateClick{
-			ShortenID: shortenID,
-			Platform:  platform,
-			OS:        os,
-			Referrer:  referrer.Host,
-			Timestamp: time.Now(),
-		})
+	if longURL == "" {
+		var shorten domain.Shorten
+		shorten, err = handler.shortenService.GetShortenByID(c, shortenID)
 		if err != nil {
-			_ = c.Error(err)
+			c.Status(http.StatusNotFound)
 			return
 		}
+
+		longURL = shorten.LongURL
+
+		handler.cache.Set(c, "cache:"+key, shorten.LongURL, 1*time.Hour)
 	}
 
-	c.Redirect(http.StatusSeeOther, shorten.LongURL)
+	err = handler.statsService.CreateClickByUserAgent(c, shortenID, c.Request.Header.Get("User-Agent"), c.Request.Referer())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther, longURL)
 }
 
 func (handler *ShortenHandler) GetShorten(c *gin.Context) {
@@ -123,7 +104,6 @@ func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 	var request dto.GetShortenStats
 
 	if err := c.BindQuery(&request); err != nil {
-		log.Println(2 + 2)
 		_ = c.Error(err)
 		return
 	}
@@ -160,7 +140,7 @@ func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"response": stats,
 	})
 }
@@ -205,7 +185,7 @@ func (handler *ShortenHandler) GetShortenSummaryStats(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"response": stats,
 	})
 }
