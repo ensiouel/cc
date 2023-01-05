@@ -16,6 +16,7 @@ type ShortenStorage interface {
 	DeleteShorten(ctx context.Context, userID uuid.UUID, shortenID uint64) error
 	GetShortenByID(ctx context.Context, id uint64) (model.Shorten, error)
 	GetShortenByURL(ctx context.Context, url string) (model.Shorten, error)
+	GetShortenURL(ctx context.Context, shortenID uint64) (string, error)
 	SelectShortensByUserID(ctx context.Context, id uuid.UUID) ([]model.Shorten, error)
 	ExistsShortenByID(ctx context.Context, userID uuid.UUID, id uint64) (bool, error)
 	ExistsShortenByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error)
@@ -134,6 +135,28 @@ WHERE
 		}
 
 		return shorten, apperror.ErrInternalError.SetError(err)
+	}
+
+	return
+}
+
+func (storage *shortenStorage) GetShortenURL(ctx context.Context, shortenID uint64) (url string, err error) {
+	q := `
+SELECT 
+    url 
+FROM 
+    shortens 
+WHERE 
+    id = $1
+`
+
+	err = storage.db.GetContext(ctx, &url, q, shortenID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return url, apperror.ErrNotExists
+		}
+
+		return url, apperror.ErrInternalError.SetError(err)
 	}
 
 	return

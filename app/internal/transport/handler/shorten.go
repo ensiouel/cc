@@ -48,37 +48,38 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 	shortenID, err := base62.Decode(key)
 	if err != nil {
 		c.Status(http.StatusNotFound)
+
 		return
 	}
 
-	var longURL string
+	var url string
 
-	longURL, err = handler.cache.Get(c, "cache:"+key).Result()
+	url, err = handler.cache.Get(c, "cache:"+key).Result()
 	if err != nil && errors.Is(err, redis.Nil) == false {
 		_ = c.Error(apperror.ErrInternalError.SetError(err))
+
 		return
 	}
 
-	if longURL == "" {
-		var shorten domain.Shorten
-		shorten, err = handler.shortenService.GetShortenByID(c, shortenID)
+	if url == "" {
+		url, err = handler.shortenService.GetShortenURL(c, shortenID)
 		if err != nil {
 			c.Status(http.StatusNotFound)
+
 			return
 		}
 
-		longURL = shorten.LongURL
-
-		handler.cache.Set(c, "cache:"+key, shorten.LongURL, 1*time.Hour)
+		handler.cache.Set(c, "cache:"+key, url, 1*time.Hour)
 	}
 
 	err = handler.statsService.CreateClickByUserAgent(c, shortenID, c.Request.Header.Get("User-Agent"), c.Request.Referer())
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, longURL)
+	c.Redirect(http.StatusSeeOther, url)
 }
 
 func (handler *ShortenHandler) GetShorten(c *gin.Context) {
@@ -92,10 +93,11 @@ func (handler *ShortenHandler) GetShorten(c *gin.Context) {
 	shorten, err = handler.shortenService.GetShortenByID(c, shortenID)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"response": shorten,
 	})
 }
@@ -105,35 +107,38 @@ func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	shortenID, err := base62.Decode(c.Param("key"))
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
-	target := c.Param("target")
-
 	var stats any
 
-	switch target {
+	switch target := c.Param("target"); target {
 	case "click":
 		stats, err = handler.statsService.GetClickStats(c, shortenID, request)
 		if err != nil {
 			_ = c.Error(err)
+
 			return
 		}
 	case "platform", "referrer", "os":
 		stats, err = handler.statsService.GetMetricStats(c, target, shortenID, request)
 		if err != nil {
 			_ = c.Error(err)
+
 			return
 		}
 	default:
@@ -150,35 +155,38 @@ func (handler *ShortenHandler) GetShortenSummaryStats(c *gin.Context) {
 
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	shortenID, err := base62.Decode(c.Param("key"))
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
-	target := c.Param("target")
-
 	var stats any
 
-	switch target {
+	switch target := c.Param("target"); target {
 	case "click":
 		stats, err = handler.statsService.GetClickSummaryStats(c, shortenID, request)
 		if err != nil {
 			_ = c.Error(err)
+
 			return
 		}
 	case "platform", "referrer", "os":
 		stats, err = handler.statsService.GetMetricSummaryStats(c, target, shortenID, request)
 		if err != nil {
 			_ = c.Error(err)
+
 			return
 		}
 	default:
@@ -195,11 +203,13 @@ func (handler *ShortenHandler) CreateShorten(c *gin.Context) {
 
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -211,10 +221,11 @@ func (handler *ShortenHandler) CreateShorten(c *gin.Context) {
 	shorten, err := handler.shortenService.CreateShorten(c, userID, request)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"response": shorten,
 	})
 }
@@ -224,11 +235,13 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -240,6 +253,7 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	shortenID, err := base62.Decode(c.Param("key"))
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -247,6 +261,7 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	shorten, err = handler.shortenService.UpdateShorten(c, userID, shortenID, request)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -259,6 +274,7 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 	shortenID, err := base62.Decode(c.Param("key"))
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -270,6 +286,7 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 	err = handler.shortenService.DeleteShorten(c, userID, shortenID)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 

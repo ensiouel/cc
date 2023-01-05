@@ -39,17 +39,20 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	user, err := handler.userService.SignIn(c, request)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -57,11 +60,12 @@ func (handler *UserHandler) SignIn(c *gin.Context) {
 	session, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	c.SetCookie("refresh_token", session.RefreshToken.String(), 86400,
-		"/", c.Request.Host, false, true)
+		"/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": session,
@@ -73,17 +77,20 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	user, err := handler.userService.SignUp(c, request)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -91,11 +98,12 @@ func (handler *UserHandler) SignUp(c *gin.Context) {
 	session, err = handler.authService.CreateSession(c, user.ID, c.ClientIP())
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
 	c.SetCookie("refresh_token", session.RefreshToken.String(), 86400,
-		"/", c.Request.Host, false, true)
+		"/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": session,
@@ -106,6 +114,7 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -113,6 +122,7 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 	refreshToken, err = uuid.Parse(cookie)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -120,6 +130,7 @@ func (handler *UserHandler) Refresh(c *gin.Context) {
 	session, err = handler.authService.UpdateSession(c, refreshToken)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -139,6 +150,7 @@ func (handler *UserHandler) GetUser(c *gin.Context) {
 
 	if userID, err = uuid.Parse(c.Param("id")); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -146,6 +158,7 @@ func (handler *UserHandler) GetUser(c *gin.Context) {
 	user, err = handler.userService.GetUserByID(c, userID)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -162,6 +175,7 @@ func (handler *UserHandler) SelectUserShortens(c *gin.Context) {
 
 	if userID, err = uuid.Parse(c.Param("id")); err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 
@@ -169,6 +183,7 @@ func (handler *UserHandler) SelectUserShortens(c *gin.Context) {
 	shortens, err = handler.shortenService.SelectShortensByUserID(c, userID)
 	if err != nil {
 		_ = c.Error(err)
+
 		return
 	}
 

@@ -2,8 +2,11 @@ package transport
 
 import (
 	"cc/app/internal/transport/middleware/errs"
+	_ "cc/docs"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"time"
 )
 
@@ -14,6 +17,8 @@ type Server struct {
 
 func New(handlers ...Handler) *Server {
 	router := gin.Default()
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},

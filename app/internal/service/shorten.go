@@ -21,6 +21,7 @@ type ShortenService interface {
 	DeleteShorten(ctx context.Context, userID uuid.UUID, shortenID uint64) error
 	GetShortenByID(ctx context.Context, id uint64) (domain.Shorten, error)
 	GetShortenByURL(ctx context.Context, url string) (domain.Shorten, error)
+	GetShortenURL(ctx context.Context, shortenID uint64) (string, error)
 	SelectShortensByUserID(ctx context.Context, id uuid.UUID) ([]domain.Shorten, error)
 }
 
@@ -175,6 +176,19 @@ func (service *shortenService) GetShortenByURL(ctx context.Context, url string) 
 	}
 
 	return shrtn.Domain(service.host), nil
+}
+
+func (service *shortenService) GetShortenURL(ctx context.Context, shortenID uint64) (url string, err error) {
+	url, err = service.storage.GetShortenURL(ctx, shortenID)
+	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return url, apperr.SetScope("get Shorten url")
+		}
+
+		return
+	}
+
+	return
 }
 
 func (service *shortenService) SelectShortensByUserID(ctx context.Context, id uuid.UUID) (shortens []domain.Shorten, err error) {

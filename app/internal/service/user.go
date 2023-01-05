@@ -38,6 +38,7 @@ func (service *userService) SignIn(ctx context.Context, request dto.Credentials)
 		if errors.Is(err, apperror.ErrNotExists) {
 			return user, apperror.ErrInvalidCredentials.SetMessage("invalid name or password")
 		}
+
 		return
 	}
 

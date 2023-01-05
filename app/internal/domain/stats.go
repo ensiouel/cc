@@ -4,6 +4,17 @@ import (
 	"time"
 )
 
+const (
+	UnitMinute Unit = "minute"
+	UnitHour   Unit = "hour"
+	UnitDay    Unit = "day"
+	UnitWeek   Unit = "week"
+	UnitMonth  Unit = "month"
+	UnitYear   Unit = "year"
+)
+
+type Unit string
+
 type Click struct {
 	ShortenID uint64    `json:"shorten_id"`
 	Platform  string    `json:"platform"`
@@ -30,7 +41,7 @@ type MetricSummaryState struct {
 
 type ClickStats struct {
 	Clicks []ClickState `json:"clicks"`
-	Unit   string       `json:"unit"`
+	Unit   Unit         `json:"unit"`
 	Units  int          `json:"units"`
 }
 
@@ -40,7 +51,7 @@ type ClickSummaryStats struct {
 
 type MetricStats struct {
 	Metrics []MetricState `json:"metrics"`
-	Unit    string        `json:"unit"`
+	Unit    Unit          `json:"unit"`
 	Units   int           `json:"units"`
 }
 

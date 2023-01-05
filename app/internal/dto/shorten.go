@@ -2,6 +2,7 @@ package dto
 
 import (
 	"cc/app/internal/apperror"
+	"cc/app/internal/domain"
 	"cc/app/pkg/base62"
 	"cc/app/pkg/urlutils"
 	"time"
@@ -19,10 +20,10 @@ type UpdateShorten struct {
 }
 
 type GetShortenStats struct {
-	From  string `form:"from"`
-	To    string `form:"to"`
-	Unit  string `form:"unit"`
-	Units int    `form:"units"`
+	From  string      `form:"from"`
+	To    string      `form:"to"`
+	Unit  domain.Unit `form:"unit"`
+	Units int         `form:"units"`
 }
 
 type GetShortenSummaryStats struct {
@@ -71,7 +72,7 @@ func (getShortenStats GetShortenStats) Validate() error {
 	}
 
 	switch getShortenStats.Unit {
-	case "minute", "hour", "day", "week", "month", "year":
+	case domain.UnitMinute, domain.UnitHour, domain.UnitDay, domain.UnitWeek, domain.UnitMonth, domain.UnitYear:
 	default:
 		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (minute, hour, day, week, month, year)")
 	}

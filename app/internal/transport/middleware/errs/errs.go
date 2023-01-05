@@ -24,7 +24,7 @@ func Middleware() gin.HandlerFunc {
 			case errors.Is(err.Err, apperror.ErrInvalidCredentials):
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Err})
 			default:
-				c.JSON(http.StatusInternalServerError, gin.H{"error": apperror.ErrUnknownError})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": apperror.ErrUnknownError.SetError(err.Err)})
 			}
 		}
 	}

@@ -62,12 +62,12 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, shorten
 	case userAgent.Tablet:
 		platform = "Tablet"
 	default:
-		platform = "Unknown"
+		platform = "Other"
 	}
 
 	os = userAgent.OS
 	if os == "" {
-		os = "Unknown"
+		os = "Other"
 	}
 
 	referrer, _ := url.Parse(referer)
@@ -100,7 +100,7 @@ func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64
 	}
 
 	var clicks model.ClickStats
-	clicks, err = service.storage.SelectClicks(ctx, shortenID, from, to, request.Unit, request.Units)
+	clicks, err = service.storage.SelectClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
 			return clickStats, apperr.SetScope("get click stats")
@@ -156,7 +156,7 @@ func (service *statsService) GetMetricStats(ctx context.Context, target string, 
 	}
 
 	var metrics model.MetricStats
-	metrics, err = service.storage.SelectMetrics(ctx, target, shortenID, from, to, request.Unit, request.Units)
+	metrics, err = service.storage.SelectMetrics(ctx, target, shortenID, from, to, string(request.Unit), request.Units)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
 			return metricStats, apperr.SetScope("get metric stats")
