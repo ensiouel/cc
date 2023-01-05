@@ -53,7 +53,6 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 	}
 
 	var url string
-
 	url, err = handler.cache.Get(c, "cache:"+key).Result()
 	if err != nil && errors.Is(err, redis.Nil) == false {
 		_ = c.Error(apperror.ErrInternalError.SetError(err))

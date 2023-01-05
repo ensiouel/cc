@@ -3,11 +3,11 @@ package storage
 import (
 	"cc/app/internal/apperror"
 	"cc/app/internal/model"
+	"cc/app/pkg/postgres"
 	"context"
 	"database/sql"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 type AuthStorage interface {
@@ -17,11 +17,11 @@ type AuthStorage interface {
 }
 
 type authStorage struct {
-	db *sqlx.DB
+	client postgres.Client
 }
 
-func NewAuthStorage(db *sqlx.DB) AuthStorage {
-	return &authStorage{db: db}
+func NewAuthStorage(client postgres.Client) AuthStorage {
+	return &authStorage{client: client}
 }
 
 func (storage *authStorage) CreateSession(ctx context.Context, session model.Session) (err error) {
@@ -32,7 +32,7 @@ VALUES
     ($1, $2, $3, $4, $5, $6)
 `
 
-	_, err = storage.db.ExecContext(ctx, q,
+	_, err = storage.client.Exec(ctx, q,
 		session.ID,
 		session.UserID,
 		session.RefreshToken,
@@ -61,7 +61,7 @@ WHERE
     id = $1
 `
 
-	_, err = storage.db.ExecContext(ctx, q,
+	_, err = storage.client.Exec(ctx, q,
 		session.ID,
 		session.UserID,
 		session.RefreshToken,
@@ -86,7 +86,7 @@ WHERE
 	refresh_token = $1
 `
 
-	err = storage.db.GetContext(ctx, &session, q, refreshToken)
+	err = storage.client.Get(ctx, &session, q, refreshToken)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return session, apperror.ErrNotExists

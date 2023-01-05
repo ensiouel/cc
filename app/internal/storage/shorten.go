@@ -3,11 +3,11 @@ package storage
 import (
 	"cc/app/internal/apperror"
 	"cc/app/internal/model"
+	"cc/app/pkg/postgres"
 	"context"
 	"database/sql"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 type ShortenStorage interface {
@@ -23,11 +23,11 @@ type ShortenStorage interface {
 }
 
 type shortenStorage struct {
-	db *sqlx.DB
+	client postgres.Client
 }
 
-func NewShortenStorage(db *sqlx.DB) ShortenStorage {
-	return &shortenStorage{db: db}
+func NewShortenStorage(client postgres.Client) ShortenStorage {
+	return &shortenStorage{client: client}
 }
 
 func (storage *shortenStorage) CreateShorten(ctx context.Context, shorten model.Shorten) (err error) {
@@ -38,7 +38,7 @@ VALUES
     ($1, $2, $3, $4, $5)
 `
 
-	_, err = storage.db.ExecContext(ctx, q,
+	_, err = storage.client.Exec(ctx, q,
 		shorten.ID,
 		shorten.URL,
 		shorten.UserID,
@@ -65,7 +65,7 @@ WHERE
     user_id = $5
 `
 
-	_, err = storage.db.ExecContext(ctx, q,
+	_, err = storage.client.Exec(ctx, q,
 		shorten.URL,
 		shorten.Title,
 		shorten.CreatedAt,
@@ -88,7 +88,7 @@ WHERE
     id = $2
 `
 
-	_, err = storage.db.ExecContext(ctx, q, userID, shortenID)
+	_, err = storage.client.Exec(ctx, q, userID, shortenID)
 	if err != nil {
 		return apperror.ErrInternalError.SetError(err)
 	}
@@ -106,7 +106,7 @@ WHERE
 	id = $1
 `
 
-	err = storage.db.GetContext(ctx, &shorten, q, id)
+	err = storage.client.Get(ctx, &shorten, q, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return shorten, apperror.ErrNotExists
@@ -128,7 +128,7 @@ WHERE
 	url = $1
 `
 
-	err = storage.db.GetContext(ctx, &shorten, q, url)
+	err = storage.client.Get(ctx, &shorten, q, url)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return shorten, apperror.ErrNotExists
@@ -150,7 +150,7 @@ WHERE
     id = $1
 `
 
-	err = storage.db.GetContext(ctx, &url, q, shortenID)
+	err = storage.client.Get(ctx, &url, q, shortenID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return url, apperror.ErrNotExists
@@ -172,7 +172,7 @@ WHERE
     user_id = $1
 `
 
-	err = storage.db.SelectContext(ctx, &shortens, q, id)
+	err = storage.client.Select(ctx, &shortens, q, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return shortens, apperror.ErrNotExists
@@ -198,7 +198,7 @@ SELECT
 	)
 `
 
-	err = storage.db.GetContext(ctx, &exists, q, id, userID)
+	err = storage.client.Get(ctx, &exists, q, id, userID)
 	if err != nil {
 		return exists, apperror.ErrInternalError.SetError(err)
 	}
@@ -220,7 +220,7 @@ SELECT
 	)
 `
 
-	err = storage.db.GetContext(ctx, &exists, q, url, userID)
+	err = storage.client.Get(ctx, &exists, q, url, userID)
 	if err != nil {
 		return exists, apperror.ErrInternalError.SetError(err)
 	}

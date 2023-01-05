@@ -3,8 +3,8 @@ package storage
 import (
 	"cc/app/internal/apperror"
 	"cc/app/internal/model"
+	"cc/app/pkg/postgres"
 	"context"
-	"github.com/jmoiron/sqlx"
 	"time"
 )
 
@@ -17,11 +17,11 @@ type StatsStorage interface {
 }
 
 type statsStorage struct {
-	db *sqlx.DB
+	client postgres.Client
 }
 
-func NewStatsStorage(db *sqlx.DB) StatsStorage {
-	return &statsStorage{db: db}
+func NewStatsStorage(client postgres.Client) StatsStorage {
+	return &statsStorage{client: client}
 }
 
 func (storage *statsStorage) CreateClick(ctx context.Context, click model.Click) (err error) {
@@ -32,7 +32,7 @@ VALUES
     ($1, $2, $3, $4, $5)
 `
 
-	_, err = storage.db.ExecContext(ctx, q,
+	_, err = storage.client.Exec(ctx, q,
 		click.ShortenID,
 		click.Platform,
 		click.OS,
@@ -86,7 +86,7 @@ ORDER BY
     RANGE_SERIES.timestamp;
 `
 
-	err = storage.db.SelectContext(ctx, &stats, q, from, to, unit, shortenID)
+	err = storage.client.Select(ctx, &stats, q, from, to, unit, shortenID)
 	if err != nil {
 		return stats, apperror.ErrInternalError.SetError(err)
 	}
@@ -109,7 +109,7 @@ WHERE
 GROUP BY shorten_id;
 `
 
-	err = storage.db.GetContext(ctx, &stats, q, from, to, shortenID)
+	err = storage.client.Get(ctx, &stats, q, from, to, shortenID)
 	if err != nil {
 		return stats, apperror.ErrInternalError.SetError(err)
 	}
@@ -143,7 +143,7 @@ ORDER BY
     timestamp;
 `
 
-	err = storage.db.SelectContext(ctx, &stats, q, from, to, unit, shortenID)
+	err = storage.client.Select(ctx, &stats, q, from, to, unit, shortenID)
 	if err != nil {
 		return stats, apperror.ErrInternalError.SetError(err)
 	}
@@ -166,7 +166,7 @@ WHERE
 GROUP BY shorten_id, name;
 `
 
-	err = storage.db.SelectContext(ctx, &stats, q, from, to, shortenID)
+	err = storage.client.Select(ctx, &stats, q, from, to, shortenID)
 	if err != nil {
 		return stats, apperror.ErrInternalError.SetError(err)
 	}

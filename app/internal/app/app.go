@@ -29,7 +29,10 @@ func New() (app *App) {
 }
 
 func (app *App) Run() {
-	db, err := postgres.NewClient(postgres.Config{
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	client, err := postgres.NewClient(ctx, postgres.Config{
 		Host: app.cfg.Postgres.Host, Port: app.cfg.Postgres.Port, Database: app.cfg.Postgres.Database,
 		Username: app.cfg.Postgres.Username, Password: app.cfg.Postgres.Password,
 	})
@@ -43,13 +46,13 @@ func (app *App) Run() {
 		DB:       0,
 	})
 
-	authStorage := storage.NewAuthStorage(db)
+	authStorage := storage.NewAuthStorage(client)
 	authService := service.NewAuthService(authStorage, app.cfg.Auth.SigningKey, 1*time.Hour)
 
-	statsStorage := storage.NewStatsStorage(db)
+	statsStorage := storage.NewStatsStorage(client)
 	statsService := service.NewStatsService(statsStorage)
 
-	shortenStorage := storage.NewShortenStorage(db)
+	shortenStorage := storage.NewShortenStorage(client)
 	shortenService := service.NewShortenService(shortenStorage, app.cfg.Shorten.Host)
 	shortenHandler := handler.NewShortenHandler(
 		shortenService,
@@ -58,16 +61,13 @@ func (app *App) Run() {
 		cache,
 	)
 
-	userStorage := storage.NewUserStorage(db)
+	userStorage := storage.NewUserStorage(client)
 	userService := service.NewUserService(userStorage)
 	userHandler := handler.NewUserHandler(
 		userService,
 		authService,
 		shortenService,
 	)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		err = http.ListenAndServe(app.cfg.Prometheus.Addr, promhttp.Handler())
