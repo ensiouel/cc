@@ -62,12 +62,12 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, shorten
 	case userAgent.Tablet:
 		platform = "Tablet"
 	default:
-		platform = "Other"
+		platform = "Unknown"
 	}
 
 	os = userAgent.OS
 	if os == "" {
-		os = "Other"
+		os = "Unknown"
 	}
 
 	referrer, _ := url.Parse(referer)
