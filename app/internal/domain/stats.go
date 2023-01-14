@@ -34,19 +34,16 @@ type MetricState struct {
 	Date  time.Time `json:"date"`
 }
 
-type MetricSummaryState struct {
+type SummaryMetricState struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
 type ClickStats struct {
+	Total  int          `json:"total"`
 	Clicks []ClickState `json:"clicks"`
 	Unit   Unit         `json:"unit"`
 	Units  int          `json:"units"`
-}
-
-type ClickSummaryStats struct {
-	Clicks int `json:"clicks"`
 }
 
 type MetricStats struct {
@@ -55,6 +52,6 @@ type MetricStats struct {
 	Units   int           `json:"units"`
 }
 
-type MetricSummaryStats struct {
-	Metrics []MetricSummaryState `json:"metrics"`
+type SummaryMetricStats struct {
+	Metrics []SummaryMetricState `json:"metrics"`
 }

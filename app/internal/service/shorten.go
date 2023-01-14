@@ -36,8 +36,8 @@ func NewShortenService(storage storage.ShortenStorage, host string) ShortenServi
 
 func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UUID, request dto.CreateShorten) (shorten domain.Shorten, err error) {
 	var id uint64
-	if request.ID != "" {
-		id, err = base62.Decode(request.ID)
+	if request.Key != "" {
+		id, err = base62.Decode(request.Key)
 		if err != nil {
 			return
 		}
@@ -63,13 +63,13 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 		}
 	}
 
-	request.LongURL, err = urlutils.Normalize(request.LongURL)
+	request.URL, err = urlutils.Normalize(request.URL)
 	if err != nil {
 		return
 	}
 
 	var exists bool
-	exists, err = service.storage.ExistsShortenByURL(ctx, userID, request.LongURL)
+	exists, err = service.storage.ExistsShortenByURL(ctx, userID, request.URL)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
 			return shorten, apperr.SetScope("create shorten")
@@ -81,7 +81,7 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 	}
 
 	if request.Title == "" {
-		url, _ := urlx.Parse(request.LongURL)
+		url, _ := urlx.Parse(request.URL)
 		request.Title = url.Host
 	}
 
@@ -89,7 +89,7 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 		ID:        id,
 		UserID:    userID,
 		Title:     request.Title,
-		URL:       request.LongURL,
+		URL:       request.URL,
 		CreatedAt: time.Now(),
 	}
 	err = service.storage.CreateShorten(ctx, shrtn)
@@ -121,6 +121,7 @@ func (service *shortenService) UpdateShorten(ctx context.Context, userID uuid.UU
 	}
 
 	shrtn.Title = request.Title
+	shrtn.URL = request.URL
 
 	err = service.storage.UpdateShorten(ctx, shrtn)
 	if err != nil {

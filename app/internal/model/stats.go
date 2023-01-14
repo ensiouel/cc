@@ -10,6 +10,7 @@ type Click struct {
 	Platform  string    `db:"platform"`
 	OS        string    `db:"os"`
 	Referrer  string    `db:"referrer"`
+	IP        string    `db:"ip"`
 	Timestamp time.Time `db:"timestamp"`
 }
 
@@ -50,8 +51,8 @@ func (metricState MetricState) Domain() domain.MetricState {
 	}
 }
 
-func (metricSummaryState MetricSummaryState) Domain() domain.MetricSummaryState {
-	return domain.MetricSummaryState{
+func (metricSummaryState MetricSummaryState) Domain() domain.SummaryMetricState {
+	return domain.SummaryMetricState{
 		Name:  metricSummaryState.Name,
 		Count: metricSummaryState.Count,
 	}
@@ -85,12 +86,12 @@ func (s MetricStats) Domain() []domain.MetricState {
 	return clickStats
 }
 
-func (s MetricSummaryStats) Domain() []domain.MetricSummaryState {
+func (s MetricSummaryStats) Domain() []domain.SummaryMetricState {
 	if len(s) == 0 {
-		return []domain.MetricSummaryState{}
+		return []domain.SummaryMetricState{}
 	}
 
-	clickStats := make([]domain.MetricSummaryState, len(s))
+	clickStats := make([]domain.SummaryMetricState, len(s))
 
 	for i, shorten := range s {
 		clickStats[i] = shorten.Domain()

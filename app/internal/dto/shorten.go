@@ -10,13 +10,14 @@ import (
 )
 
 type CreateShorten struct {
-	ID      string `json:"id"`
-	LongURL string `json:"long_url"`
-	Title   string `json:"title"`
+	Key   string `json:"key"`
+	URL   string `json:"url"`
+	Title string `json:"title"`
 }
 
 type UpdateShorten struct {
 	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 type GetShortenStats struct {
@@ -32,16 +33,16 @@ type GetShortenSummaryStats struct {
 }
 
 func (createShorten CreateShorten) Validate() error {
-	if createShorten.LongURL == "" {
-		return apperror.ErrInvalidParams.SetMessage("long_url is required")
+	if createShorten.URL == "" {
+		return apperror.ErrInvalidParams.SetMessage("url is required")
 	}
 
-	if err := urlutils.Validate(createShorten.LongURL); err != nil {
-		return apperror.ErrInvalidParams.SetError(err).SetMessage("long_url is invalid")
+	if err := urlutils.Validate(createShorten.URL); err != nil {
+		return apperror.ErrInvalidParams.SetError(err).SetMessage("url is invalid")
 	}
 
-	if _, err := base62.Decode(createShorten.ID); err != nil {
-		return apperror.ErrInvalidParams.SetError(err).SetMessage("id is invalid")
+	if _, err := base62.Decode(createShorten.Key); err != nil {
+		return apperror.ErrInvalidParams.SetError(err).SetMessage("key is invalid")
 	}
 
 	return nil
@@ -54,6 +55,10 @@ func (updateShorten UpdateShorten) Validate() error {
 
 	if utf8.RuneCountInString(updateShorten.Title) > 100 {
 		return apperror.ErrInvalidParams.SetMessage("title is to long")
+	}
+
+	if err := urlutils.Validate(updateShorten.URL); err != nil {
+		return apperror.ErrInvalidParams.SetError(err).SetMessage("url is invalid")
 	}
 
 	return nil

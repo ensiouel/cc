@@ -5,9 +5,9 @@ import (
 	"cc/app/internal/model"
 	"cc/app/pkg/postgres"
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type AuthStorage interface {
@@ -88,7 +88,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &session, q, refreshToken)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return session, apperror.ErrNotExists
 		}
 

@@ -5,9 +5,9 @@ import (
 	"cc/app/internal/model"
 	"cc/app/pkg/postgres"
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type UserStorage interface {
@@ -53,7 +53,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &user, q, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return user, apperror.ErrNotExists
 		}
 
@@ -75,7 +75,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &user, q, name)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return user, apperror.ErrNotExists
 		}
 
