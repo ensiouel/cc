@@ -7,5 +7,6 @@ type CreateClick struct {
 	Platform  string    `json:"platform"`
 	OS        string    `json:"os"`
 	Referrer  string    `json:"referrer"`
+	IP        string    `json:"ip"`
 	Timestamp time.Time `json:"timestamp"`
 }

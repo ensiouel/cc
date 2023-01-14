@@ -5,9 +5,9 @@ import (
 	"cc/app/internal/model"
 	"cc/app/pkg/postgres"
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type ShortenStorage interface {
@@ -108,7 +108,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &shorten, q, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return shorten, apperror.ErrNotExists
 		}
 
@@ -130,7 +130,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &shorten, q, url)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return shorten, apperror.ErrNotExists
 		}
 
@@ -152,7 +152,7 @@ WHERE
 
 	err = storage.client.Get(ctx, &url, q, shortenID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return url, apperror.ErrNotExists
 		}
 
@@ -174,7 +174,7 @@ WHERE
 
 	err = storage.client.Select(ctx, &shortens, q, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return shortens, apperror.ErrNotExists
 		}
 

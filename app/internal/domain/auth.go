@@ -8,7 +8,7 @@ import (
 type Session struct {
 	UserID       uuid.UUID `json:"user_id"`
 	AccessToken  string    `json:"access_token"`
-	RefreshToken uuid.UUID `json:"-"`
+	RefreshToken uuid.UUID `json:"refresh_token"`
 }
 
 type Claims struct {

@@ -14,11 +14,13 @@ import (
 
 type StatsService interface {
 	CreateClick(ctx context.Context, request dto.CreateClick) error
-	CreateClickByUserAgent(ctx context.Context, shortenID uint64, userAgent, referer string) error
+	CreateClickByUserAgent(ctx context.Context, timestamp time.Time, shortenID uint64, userAgent, referer, ip string) error
+
 	GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.ClickStats, error)
-	GetClickSummaryStats(ctx context.Context, shortenID uint64, request dto.GetShortenSummaryStats) (domain.ClickSummaryStats, error)
+	GetUniqueClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.ClickStats, error)
+
 	GetMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenStats) (domain.MetricStats, error)
-	GetMetricSummaryStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (domain.MetricSummaryStats, error)
+	GetSummaryMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (domain.SummaryMetricStats, error)
 }
 
 type statsService struct {
@@ -35,6 +37,7 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 		Platform:  request.Platform,
 		OS:        request.OS,
 		Referrer:  request.Referrer,
+		IP:        request.IP,
 		Timestamp: request.Timestamp,
 	}
 	err = service.storage.CreateClick(ctx, clck)
@@ -49,7 +52,7 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 	return
 }
 
-func (service *statsService) CreateClickByUserAgent(ctx context.Context, shortenID uint64, ua, referer string) (err error) {
+func (service *statsService) CreateClickByUserAgent(ctx context.Context, timestamp time.Time, shortenID uint64, ua, referer, ip string) (err error) {
 	userAgent := useragent.Parse(ua)
 
 	var platform, os string
@@ -80,7 +83,8 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, shorten
 		Platform:  platform,
 		OS:        os,
 		Referrer:  referrer.Host,
-		Timestamp: time.Now(),
+		IP:        ip,
+		Timestamp: timestamp,
 	})
 	if err != nil {
 		return err
@@ -89,57 +93,81 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, shorten
 	return nil
 }
 
-func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (clickStats domain.ClickStats, err error) {
+func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.ClickStats, err error) {
 	var (
 		from, to time.Time
 	)
 	from, err = time.Parse("2006-01-02", request.From)
 	to, err = time.Parse("2006-01-02", request.To)
 	if err != nil {
-		return clickStats, apperror.ErrInvalidParams
+		return stats, apperror.ErrInvalidParams
 	}
 
-	var clicks model.ClickStats
-	clicks, err = service.storage.SelectClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
+	var clickStats model.ClickStats
+	clickStats, err = service.storage.SelectClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
-			return clickStats, apperr.SetScope("get click stats")
+			return stats, apperr.SetScope("get click stats")
 		}
 
 		return
 	}
 
-	clickStats = domain.ClickStats{
-		Clicks: clicks.Domain(),
+	var clicks int
+	clicks, err = service.storage.GetTotalClicks(ctx, shortenID, from, to)
+	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return stats, apperr.SetScope("get click stats")
+		}
+
+		return
+	}
+
+	stats = domain.ClickStats{
+		Total:  clicks,
+		Clicks: clickStats.Domain(),
 		Unit:   request.Unit,
-		Units:  len(clicks),
+		Units:  len(clickStats),
 	}
 
 	return
 }
 
-func (service *statsService) GetClickSummaryStats(ctx context.Context, shortenID uint64, request dto.GetShortenSummaryStats) (clickSummaryStats domain.ClickSummaryStats, err error) {
+func (service *statsService) GetUniqueClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.ClickStats, err error) {
 	var (
 		from, to time.Time
 	)
 	from, err = time.Parse("2006-01-02", request.From)
 	to, err = time.Parse("2006-01-02", request.To)
 	if err != nil {
-		return clickSummaryStats, apperror.ErrInvalidParams
+		return stats, apperror.ErrInvalidParams
 	}
 
-	var clickSummary int
-	clickSummary, err = service.storage.SelectSummaryClicks(ctx, shortenID, from, to)
+	var clickStats model.ClickStats
+	clickStats, err = service.storage.SelectUniqueClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
-			return clickSummaryStats, apperr.SetScope("get click summary stats")
+			return stats, apperr.SetScope("get click stats")
 		}
 
 		return
 	}
 
-	clickSummaryStats = domain.ClickSummaryStats{
-		Clicks: clickSummary,
+	var clicks int
+	clicks, err = service.storage.GetTotalUniqueClicks(ctx, shortenID, from, to, string(request.Unit))
+	if err != nil {
+		if apperr, ok := apperror.Internal(err); ok {
+			return stats, apperr.SetScope("get click stats")
+		}
+
+		return
+	}
+
+	stats = domain.ClickStats{
+		Total:  clicks,
+		Clicks: clickStats.Domain(),
+		Unit:   request.Unit,
+		Units:  len(clickStats),
 	}
 
 	return
@@ -174,7 +202,7 @@ func (service *statsService) GetMetricStats(ctx context.Context, target string, 
 	return
 }
 
-func (service *statsService) GetMetricSummaryStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (metricSummaryStats domain.MetricSummaryStats, err error) {
+func (service *statsService) GetSummaryMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (metricSummaryStats domain.SummaryMetricStats, err error) {
 	var (
 		from, to time.Time
 	)
@@ -194,7 +222,7 @@ func (service *statsService) GetMetricSummaryStats(ctx context.Context, target s
 		return
 	}
 
-	metricSummaryStats = domain.MetricSummaryStats{
+	metricSummaryStats = domain.SummaryMetricStats{
 		Metrics: metrics.Domain(),
 	}
 
