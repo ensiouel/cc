@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"net/http"
 )
 
 func Middleware(authService service.AuthService) gin.HandlerFunc {
@@ -16,9 +15,8 @@ func Middleware(authService service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
 		if authorization == "" || len(authorization) < len(prefix) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": apperror.ErrUnauthorized,
-			})
+			_ = c.Error(apperror.ErrUnauthorized.SetMessage("invalid access token"))
+			c.Abort()
 			return
 		}
 
@@ -27,23 +25,20 @@ func Middleware(authService service.AuthService) gin.HandlerFunc {
 		token, err := authService.ParseToken(payload)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-					"error": apperror.ErrUnauthorized.SetMessage("access token has expired"),
-				})
+				_ = c.Error(apperror.ErrUnauthorized.SetMessage("access token has expired"))
+				c.Abort()
 				return
 			}
 
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": apperror.ErrUnauthorized.SetMessage("invalid access token"),
-			})
+			_ = c.Error(apperror.ErrUnauthorized.SetMessage("invalid access token"))
+			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(*domain.Claims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": apperror.ErrUnauthorized,
-			})
+			_ = c.Error(apperror.ErrUnauthorized.SetMessage("invalid access token"))
+			c.Abort()
 			return
 		}
 

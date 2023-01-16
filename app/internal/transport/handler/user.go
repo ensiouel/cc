@@ -24,29 +24,24 @@ func (handler *UserHandler) Register(group *gin.RouterGroup) {
 	authorized := group.Group("/")
 	authorized.Use(auth.Middleware(handler.authService))
 	{
-		//TODO поменять id на name
 		authorized.GET("/api/users/:id", handler.GetUser)
 		authorized.GET("/api/users/:id/shortens", handler.SelectUserShortens)
 	}
 }
 
 func (handler *UserHandler) GetUser(c *gin.Context) {
-	var (
-		userID uuid.UUID
-		err    error
-	)
-
-	if userID, err = uuid.Parse(c.Param("id")); err != nil {
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var user domain.User
-	user, err = handler.userService.GetUserByID(c, userID)
+	user, err = handler.userService.GetUserByID(c,
+		userID,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -56,22 +51,18 @@ func (handler *UserHandler) GetUser(c *gin.Context) {
 }
 
 func (handler *UserHandler) SelectUserShortens(c *gin.Context) {
-	var (
-		userID uuid.UUID
-		err    error
-	)
-
-	if userID, err = uuid.Parse(c.Param("id")); err != nil {
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var shortens []domain.Shorten
-	shortens, err = handler.shortenService.SelectShortensByUserID(c, userID)
+	shortens, err = handler.shortenService.SelectShortensByUserID(c,
+		userID,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 

@@ -13,6 +13,7 @@ type Shorten struct {
 	Title     string    `db:"title"`
 	URL       string    `db:"url"`
 	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 type Shortens []Shorten
@@ -26,6 +27,7 @@ func (s Shorten) Domain(host string) domain.Shorten {
 		LongURL:   s.URL,
 		ShortURL:  host + "/" + id,
 		CreatedAt: s.CreatedAt,
+		UpdatedAt: s.UpdatedAt,
 	}
 }
 
