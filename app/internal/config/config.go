@@ -24,6 +24,7 @@ type Config struct {
 	Auth       Auth       `yaml:"auth"`
 	Shorten    Shorten    `yaml:"shorten"`
 	Prometheus Prometheus `yaml:"prometheus"`
+	Redis      Redis      `yaml:"redis"`
 }
 
 type Server struct {
@@ -48,4 +49,9 @@ type Shorten struct {
 
 type Prometheus struct {
 	Addr string `yaml:"addr" env:"PROMETHEUS_ADDR" env-default:":8082"`
+}
+
+type Redis struct {
+	Addr     string `yaml:"addr" env:"REDIS_ADDR" env-default:":6379"`
+	Password string `yaml:"password" env:"REDIS_PASSWORD"`
 }

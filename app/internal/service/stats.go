@@ -65,17 +65,21 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 	case userAgent.Tablet:
 		platform = "Tablet"
 	default:
-		platform = "Unknown"
+		platform = "Other"
 	}
 
 	os = userAgent.OS
 	if os == "" {
-		os = "Unknown"
+		os = "Other"
 	}
 
 	referrer, _ := url.Parse(referer)
 	if referrer.Host == "" {
-		referrer.Host = "Unknown"
+		referrer.Host = "Other"
+	}
+
+	if userAgent.Bot || (platform == "Other" && os == "Other") {
+		return nil
 	}
 
 	err = service.CreateClick(ctx, dto.CreateClick{

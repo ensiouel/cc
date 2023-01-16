@@ -14,17 +14,19 @@ func Middleware() gin.HandlerFunc {
 		for _, err := range c.Errors {
 			switch {
 			case errors.Is(err.Err, apperror.ErrInternalError):
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Err})
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Err})
 			case errors.Is(err.Err, apperror.ErrNotExists):
-				c.JSON(http.StatusNotFound, gin.H{"error": err.Err})
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Err})
 			case errors.Is(err.Err, apperror.ErrAlreadyExists):
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Err})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Err})
 			case errors.Is(err.Err, apperror.ErrInvalidParams):
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Err})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Err})
 			case errors.Is(err.Err, apperror.ErrInvalidCredentials):
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Err})
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Err})
+			case errors.Is(err.Err, apperror.ErrUnauthorized):
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Err})
 			default:
-				c.JSON(http.StatusInternalServerError, gin.H{"error": apperror.ErrUnknownError.SetError(err.Err)})
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": apperror.ErrUnknownError.SetError(err.Err)})
 			}
 		}
 	}

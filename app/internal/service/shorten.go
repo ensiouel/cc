@@ -85,12 +85,15 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 		request.Title = url.Host
 	}
 
+	now := time.Now()
+
 	shrtn := model.Shorten{
 		ID:        id,
 		UserID:    userID,
 		Title:     request.Title,
 		URL:       request.URL,
-		CreatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	err = service.storage.CreateShorten(ctx, shrtn)
 	if err != nil {
@@ -122,6 +125,7 @@ func (service *shortenService) UpdateShorten(ctx context.Context, userID uuid.UU
 
 	shrtn.Title = request.Title
 	shrtn.URL = request.URL
+	shrtn.UpdatedAt = time.Now()
 
 	err = service.storage.UpdateShorten(ctx, shrtn)
 	if err != nil {

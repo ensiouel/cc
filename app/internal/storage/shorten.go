@@ -33,9 +33,9 @@ func NewShortenStorage(client postgres.Client) ShortenStorage {
 func (storage *shortenStorage) CreateShorten(ctx context.Context, shorten model.Shorten) (err error) {
 	q := `
 INSERT INTO 
-    shortens (id, url, user_id, title, created_at) 
+    shortens (id, url, user_id, title, created_at, updated_at) 
 VALUES 
-    ($1, $2, $3, $4, $5)
+    ($1, $2, $3, $4, $5, $6)
 `
 
 	_, err = storage.client.Exec(ctx, q,
@@ -44,6 +44,7 @@ VALUES
 		shorten.UserID,
 		shorten.Title,
 		shorten.CreatedAt,
+		shorten.UpdatedAt,
 	)
 	if err != nil {
 		return apperror.ErrInternalError.SetError(err)
@@ -59,16 +60,18 @@ UPDATE
 SET 
     url = $1,
     title = $2,
-    created_at = $3
+    created_at = $3,
+    updated_at = $4
 WHERE
-    id = $4 AND
-    user_id = $5
+    id = $5 AND
+    user_id = $6
 `
 
 	_, err = storage.client.Exec(ctx, q,
 		shorten.URL,
 		shorten.Title,
 		shorten.CreatedAt,
+		shorten.UpdatedAt,
 		shorten.ID,
 		shorten.UserID,
 	)
@@ -99,7 +102,7 @@ WHERE
 func (storage *shortenStorage) GetShortenByID(ctx context.Context, id uint64) (shorten model.Shorten, err error) {
 	q := `
 SELECT 
-    id, url, user_id, title, created_at 
+    id, url, user_id, title, created_at, updated_at 
 FROM 
     shortens 
 WHERE
@@ -109,7 +112,7 @@ WHERE
 	err = storage.client.Get(ctx, &shorten, q, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return shorten, apperror.ErrNotExists
+			return shorten, apperror.ErrNotExists.SetMessage("shorten with this id not exists")
 		}
 
 		return shorten, apperror.ErrInternalError.SetError(err)
@@ -121,7 +124,7 @@ WHERE
 func (storage *shortenStorage) GetShortenByURL(ctx context.Context, url string) (shorten model.Shorten, err error) {
 	q := `
 SELECT 
-    id, url, user_id, title, created_at 
+    id, url, user_id, title, created_at, updated_at
 FROM 
     shortens 
 WHERE
@@ -131,7 +134,7 @@ WHERE
 	err = storage.client.Get(ctx, &shorten, q, url)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return shorten, apperror.ErrNotExists
+			return shorten, apperror.ErrNotExists.SetMessage("shorten with this url not exists")
 		}
 
 		return shorten, apperror.ErrInternalError.SetError(err)
@@ -153,7 +156,7 @@ WHERE
 	err = storage.client.Get(ctx, &url, q, shortenID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return url, apperror.ErrNotExists
+			return url, apperror.ErrNotExists.SetMessage("url with this shorten_id not exists")
 		}
 
 		return url, apperror.ErrInternalError.SetError(err)
@@ -165,7 +168,7 @@ WHERE
 func (storage *shortenStorage) SelectShortensByUserID(ctx context.Context, id uuid.UUID) (shortens []model.Shorten, err error) {
 	q := `
 SELECT 
-    id, url, user_id, title, created_at 
+    id, url, user_id, title, created_at, updated_at
 FROM
     shortens
 WHERE
@@ -175,7 +178,7 @@ WHERE
 	err = storage.client.Select(ctx, &shortens, q, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return shortens, apperror.ErrNotExists
+			return shortens, apperror.ErrNotExists.SetMessage("shorten with this user_id not exists")
 		}
 
 		return shortens, apperror.ErrInternalError.SetError(err)

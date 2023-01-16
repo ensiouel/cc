@@ -3,6 +3,7 @@ package service
 import (
 	"cc/app/internal/apperror"
 	"cc/app/internal/domain"
+	"cc/app/internal/dto"
 	"cc/app/internal/model"
 	"cc/app/internal/storage"
 	"context"
@@ -13,7 +14,7 @@ import (
 
 type AuthService interface {
 	CreateSession(ctx context.Context, userID uuid.UUID, ip string) (domain.Session, error)
-	UpdateSession(ctx context.Context, refreshToken uuid.UUID) (domain.Session, error)
+	UpdateSession(ctx context.Context, request dto.Refresh) (domain.Session, error)
 	ParseToken(token string) (*jwt.Token, error)
 }
 
@@ -59,9 +60,9 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 	return
 }
 
-func (service *authService) UpdateSession(ctx context.Context, refreshToken uuid.UUID) (session domain.Session, err error) {
+func (service *authService) UpdateSession(ctx context.Context, request dto.Refresh) (session domain.Session, err error) {
 	var sssn model.Session
-	sssn, err = service.storage.GetSessionByRefreshToken(ctx, refreshToken)
+	sssn, err = service.storage.GetSessionByRefreshToken(ctx, request.RefreshToken)
 	if err != nil {
 		if apperr, ok := apperror.Internal(err); ok {
 			return session, apperr.SetScope("update session")

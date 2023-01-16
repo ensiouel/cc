@@ -33,8 +33,6 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 	authorized := group.Group("/")
 	authorized.Use(auth.Middleware(handler.authService))
 	{
-		authorized.GET("/api/shortens/:key", handler.GetShorten)
-
 		authorized.GET("/api/shortens/:key/clicks", handler.GetClicksStats)
 		authorized.GET("/api/shortens/:key/clicks/unique", handler.GetUniqueClicksStats)
 
@@ -42,28 +40,25 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 		authorized.GET("/api/shortens/:key/metrics/:target/summary", handler.GetSummaryMetricsStats)
 
 		authorized.POST("/api/shortens", handler.CreateShorten)
-
+		authorized.GET("/api/shortens/:key", handler.GetShorten)
 		authorized.PATCH("/api/shortens/:key", handler.UpdateShorten)
-
 		authorized.DELETE("/api/shortens/:key", handler.DeleteShorten)
 	}
 }
 
 func (handler *ShortenHandler) Redirect(c *gin.Context) {
-	key := c.Param("key")
+	shortenKey := c.Param("key")
 
-	shortenID, err := base62.Decode(key)
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		c.Status(http.StatusNotFound)
-
 		return
 	}
 
 	var url string
-	url, err = handler.cache.Get(c, "cache:"+key).Result()
+	url, err = handler.cache.Get(c, "shorten:"+shortenKey).Result()
 	if err != nil && errors.Is(err, redis.Nil) == false {
 		_ = c.Error(apperror.ErrInternalError.SetError(err))
-
 		return
 	}
 
@@ -71,17 +66,23 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 		url, err = handler.shortenService.GetShortenURL(c, shortenID)
 		if err != nil {
 			c.Status(http.StatusNotFound)
-
 			return
 		}
 
-		handler.cache.Set(c, "cache:"+key, url, 1*time.Hour)
+		handler.cache.Set(c, "shorten:"+shortenKey, url, 1*time.Hour)
 	}
 
-	err = handler.statsService.CreateClickByUserAgent(c, time.Now(), shortenID, c.Request.Header.Get("User-Agent"), c.Request.Referer(), c.ClientIP())
+	now := time.Now()
+
+	err = handler.statsService.CreateClickByUserAgent(c,
+		now,
+		shortenID,
+		c.Request.Header.Get("User-Agent"),
+		c.Request.Referer(),
+		c.ClientIP(),
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -89,17 +90,20 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 }
 
 func (handler *ShortenHandler) GetShorten(c *gin.Context) {
-	shortenID, err := base62.Decode(c.Param("key"))
+	shortenKey := c.Param("key")
+
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var shorten domain.Shorten
-	shorten, err = handler.shortenService.GetShortenByID(c, shortenID)
+	shorten, err = handler.shortenService.GetShortenByID(c,
+		shortenID,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -110,28 +114,27 @@ func (handler *ShortenHandler) GetShorten(c *gin.Context) {
 
 func (handler *ShortenHandler) CreateShorten(c *gin.Context) {
 	var request dto.CreateShorten
-
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var userID uuid.UUID
-	if value, exists := c.Get("user_id"); exists {
+	if value, exists := c.Get("user_id"); exists && value != nil {
 		userID = value.(uuid.UUID)
 	}
 
-	shorten, err := handler.shortenService.CreateShorten(c, userID, request)
+	shorten, err := handler.shortenService.CreateShorten(c,
+		userID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -142,36 +145,37 @@ func (handler *ShortenHandler) CreateShorten(c *gin.Context) {
 
 func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	var request dto.UpdateShorten
-
 	if err := c.BindJSON(&request); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	if err := request.Validate(); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var userID uuid.UUID
-	if value, exists := c.Get("user_id"); exists {
+	if value, exists := c.Get("user_id"); exists && value != nil {
 		userID = value.(uuid.UUID)
 	}
 
-	shortenID, err := base62.Decode(c.Param("key"))
+	shortenKey := c.Param("key")
+
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var shorten domain.Shorten
-	shorten, err = handler.shortenService.UpdateShorten(c, userID, shortenID, request)
+	shorten, err = handler.shortenService.UpdateShorten(c,
+		userID,
+		shortenID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -184,19 +188,20 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 	shortenID, err := base62.Decode(c.Param("key"))
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var userID uuid.UUID
-	if value, exists := c.Get("user_id"); exists {
+	if value, exists := c.Get("user_id"); exists && value != nil {
 		userID = value.(uuid.UUID)
 	}
 
-	err = handler.shortenService.DeleteShorten(c, userID, shortenID)
+	err = handler.shortenService.DeleteShorten(c,
+		userID,
+		shortenID,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -207,14 +212,19 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 
 func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
 	var request dto.GetShortenStats
-
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
-	shortenID, err := base62.Decode(c.Param("key"))
+	if err := request.Validate(); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	shortenKey := c.Param("key")
+
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
 
@@ -222,10 +232,12 @@ func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
 	}
 
 	var stats domain.ClickStats
-	stats, err = handler.statsService.GetClickStats(c, shortenID, request)
+	stats, err = handler.statsService.GetClickStats(c,
+		shortenID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -236,25 +248,31 @@ func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
 
 func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
 	var request dto.GetShortenStats
-
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
-	shortenID, err := base62.Decode(c.Param("key"))
+	if err := request.Validate(); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	shortenKey := c.Param("key")
+
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var stats domain.ClickStats
-	stats, err = handler.statsService.GetUniqueClickStats(c, shortenID, request)
+	stats, err = handler.statsService.GetUniqueClickStats(c,
+		shortenID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -265,27 +283,33 @@ func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
 
 func (handler *ShortenHandler) GetMetricsStats(c *gin.Context) {
 	var request dto.GetShortenStats
-
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
+		return
+	}
 
+	if err := request.Validate(); err != nil {
+		_ = c.Error(err)
 		return
 	}
 
 	target := c.Param("target")
+	shortenKey := c.Param("key")
 
-	shortenID, err := base62.Decode(c.Param("key"))
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var stats domain.MetricStats
-	stats, err = handler.statsService.GetMetricStats(c, target, shortenID, request)
+	stats, err = handler.statsService.GetMetricStats(c,
+		target,
+		shortenID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
@@ -296,27 +320,33 @@ func (handler *ShortenHandler) GetMetricsStats(c *gin.Context) {
 
 func (handler *ShortenHandler) GetSummaryMetricsStats(c *gin.Context) {
 	var request dto.GetShortenSummaryStats
-
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
+		return
+	}
 
+	if err := request.Validate(); err != nil {
+		_ = c.Error(err)
 		return
 	}
 
 	target := c.Param("target")
+	shortenKey := c.Param("key")
 
-	shortenID, err := base62.Decode(c.Param("key"))
+	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
 	var stats domain.SummaryMetricStats
-	stats, err = handler.statsService.GetSummaryMetricStats(c, target, shortenID, request)
+	stats, err = handler.statsService.GetSummaryMetricStats(c,
+		target,
+		shortenID,
+		request,
+	)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
