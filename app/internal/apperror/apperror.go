@@ -7,7 +7,7 @@ import (
 const (
 	codeUnknownError errs.ErrorCode = iota - 1
 	codeInternalError
-	codeNotFound
+	codeNotExists
 	codeAlreadyExists
 	codeInvalidParams
 	codeInvalidCredentials
@@ -30,7 +30,7 @@ func Internal(err error) (internal errs.Error, ok bool) {
 var (
 	ErrUnknownError       = codeUnknownError.New("unknown error")
 	ErrInternalError      = codeInternalError.New("internal error")
-	ErrNotExists          = codeNotFound.New("not exists")
+	ErrNotExists          = codeNotExists.New("not exists")
 	ErrAlreadyExists      = codeAlreadyExists.New("already exists")
 	ErrInvalidParams      = codeInvalidParams.New("invalid params")
 	ErrInvalidCredentials = codeInvalidCredentials.New("invalid credentials")
