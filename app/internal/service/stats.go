@@ -16,11 +16,7 @@ type StatsService interface {
 	CreateClick(ctx context.Context, request dto.CreateClick) error
 	CreateClickByUserAgent(ctx context.Context, timestamp time.Time, shortenID uint64, userAgent, referer, ip string) error
 
-	GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.ClickStats, error)
-	GetUniqueClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.ClickStats, error)
-
-	GetMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenStats) (domain.MetricStats, error)
-	GetSummaryMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (domain.SummaryMetricStats, error)
+	GetStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.Stats, error)
 }
 
 type statsService struct {
@@ -97,138 +93,34 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 	return nil
 }
 
-func (service *statsService) GetClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.ClickStats, err error) {
-	var (
-		from, to time.Time
-	)
-	from, err = time.Parse("2006-01-02", request.From)
-	to, err = time.Parse("2006-01-02", request.To)
+func (service *statsService) GetStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.Stats, err error) {
+	var clickMetric model.ClickMetric
+	clickMetric, err = service.storage.SelectClickMetric(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
-		return stats, apperror.ErrInvalidParams
-	}
-
-	var clickStats model.ClickStats
-	clickStats, err = service.storage.SelectClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
-	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return stats, apperr.SetScope("get click stats")
-		}
-
 		return
 	}
+	stats.Click = clickMetric.Domain()
 
-	var clicks int
-	clicks, err = service.storage.GetTotalClicks(ctx, shortenID, from, to)
+	var platformMetrics model.Metrics
+	platformMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "platform", request.From, request.To, request.Unit, request.Units)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return stats, apperr.SetScope("get click stats")
-		}
-
 		return
 	}
+	stats.Platform = platformMetrics.Domain()
 
-	stats = domain.ClickStats{
-		Total:  clicks,
-		Clicks: clickStats.Domain(),
-		Unit:   request.Unit,
-		Units:  len(clickStats),
-	}
-
-	return
-}
-
-func (service *statsService) GetUniqueClickStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.ClickStats, err error) {
-	var (
-		from, to time.Time
-	)
-	from, err = time.Parse("2006-01-02", request.From)
-	to, err = time.Parse("2006-01-02", request.To)
+	var osMetrics model.Metrics
+	osMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "os", request.From, request.To, request.Unit, request.Units)
 	if err != nil {
-		return stats, apperror.ErrInvalidParams
-	}
-
-	var clickStats model.ClickStats
-	clickStats, err = service.storage.SelectUniqueClicks(ctx, shortenID, from, to, string(request.Unit), request.Units)
-	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return stats, apperr.SetScope("get click stats")
-		}
-
 		return
 	}
+	stats.OS = osMetrics.Domain()
 
-	var clicks int
-	clicks, err = service.storage.GetTotalUniqueClicks(ctx, shortenID, from, to, string(request.Unit))
+	var refererMetrics model.Metrics
+	refererMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "referrer", request.From, request.To, request.Unit, request.Units)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return stats, apperr.SetScope("get click stats")
-		}
-
 		return
 	}
-
-	stats = domain.ClickStats{
-		Total:  clicks,
-		Clicks: clickStats.Domain(),
-		Unit:   request.Unit,
-		Units:  len(clickStats),
-	}
-
-	return
-}
-
-func (service *statsService) GetMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenStats) (metricStats domain.MetricStats, err error) {
-	var (
-		from, to time.Time
-	)
-	from, err = time.Parse("2006-01-02", request.From)
-	to, err = time.Parse("2006-01-02", request.To)
-	if err != nil {
-		return metricStats, apperror.ErrInvalidParams
-	}
-
-	var metrics model.MetricStats
-	metrics, err = service.storage.SelectMetrics(ctx, target, shortenID, from, to, string(request.Unit), request.Units)
-	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return metricStats, apperr.SetScope("get metric stats")
-		}
-
-		return
-	}
-
-	metricStats = domain.MetricStats{
-		Metrics: metrics.Domain(),
-		Unit:    request.Unit,
-		Units:   len(metrics),
-	}
-
-	return
-}
-
-func (service *statsService) GetSummaryMetricStats(ctx context.Context, target string, shortenID uint64, request dto.GetShortenSummaryStats) (metricSummaryStats domain.SummaryMetricStats, err error) {
-	var (
-		from, to time.Time
-	)
-	from, err = time.Parse("2006-01-02", request.From)
-	to, err = time.Parse("2006-01-02", request.To)
-	if err != nil {
-		return metricSummaryStats, apperror.ErrInvalidParams
-	}
-
-	var metrics model.MetricSummaryStats
-	metrics, err = service.storage.SelectSummaryMetrics(ctx, target, shortenID, from, to)
-	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
-			return metricSummaryStats, apperr.SetScope("get metric summary stats")
-		}
-
-		return
-	}
-
-	metricSummaryStats = domain.SummaryMetricStats{
-		Metrics: metrics.Domain(),
-	}
+	stats.Referer = refererMetrics.Domain()
 
 	return
 }

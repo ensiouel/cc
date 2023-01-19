@@ -27,11 +27,6 @@ type GetShortenStats struct {
 	Units int         `form:"units"`
 }
 
-type GetShortenSummaryStats struct {
-	From string `form:"from"`
-	To   string `form:"to"`
-}
-
 func (createShorten CreateShorten) Validate() error {
 	if createShorten.URL == "" {
 		return apperror.ErrInvalidParams.SetMessage("url is required")
@@ -77,24 +72,9 @@ func (getShortenStats GetShortenStats) Validate() error {
 	}
 
 	switch getShortenStats.Unit {
-	case domain.UnitMinute, domain.UnitHour, domain.UnitDay, domain.UnitWeek, domain.UnitMonth, domain.UnitYear:
+	case domain.UnitHour, domain.UnitDay, domain.UnitWeek, domain.UnitMonth, domain.UnitYear:
 	default:
-		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (minute, hour, day, week, month, year)")
-	}
-
-	return nil
-}
-
-func (getShortenSummaryStats GetShortenSummaryStats) Validate() error {
-	var err error
-	_, err = time.Parse("2006-01-02", getShortenSummaryStats.From)
-	if err != nil {
-		return apperror.ErrInvalidParams.SetMessage("from is invalid, expected 2006-01-02")
-	}
-
-	_, err = time.Parse("2006-01-02", getShortenSummaryStats.To)
-	if err != nil {
-		return apperror.ErrInvalidParams.SetMessage("to is invalid, expected 2006-01-02")
+		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (hour, day, week, month, year)")
 	}
 
 	return nil

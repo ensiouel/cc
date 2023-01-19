@@ -33,11 +33,7 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 	authorized := group.Group("/")
 	authorized.Use(auth.Middleware(handler.authService))
 	{
-		authorized.GET("/api/shortens/:key/clicks", handler.GetClicksStats)
-		authorized.GET("/api/shortens/:key/clicks/unique", handler.GetUniqueClicksStats)
-
-		authorized.GET("/api/shortens/:key/metrics/:target", handler.GetMetricsStats)
-		authorized.GET("/api/shortens/:key/metrics/:target/summary", handler.GetSummaryMetricsStats)
+		authorized.GET("/api/shortens/:key/stats", handler.GetShortenStats)
 
 		authorized.POST("/api/shortens", handler.CreateShorten)
 		authorized.GET("/api/shortens/:key", handler.GetShorten)
@@ -210,43 +206,7 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 	})
 }
 
-func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
-	var request dto.GetShortenStats
-	if err := c.BindQuery(&request); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	shortenKey := c.Param("key")
-
-	shortenID, err := base62.Decode(shortenKey)
-	if err != nil {
-		_ = c.Error(err)
-
-		return
-	}
-
-	var stats domain.ClickStats
-	stats, err = handler.statsService.GetClickStats(c,
-		shortenID,
-		request,
-	)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
-}
-
-func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
+func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 	var request dto.GetShortenStats
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
@@ -266,82 +226,8 @@ func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
 		return
 	}
 
-	var stats domain.ClickStats
-	stats, err = handler.statsService.GetUniqueClickStats(c,
-		shortenID,
-		request,
-	)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
-}
-
-func (handler *ShortenHandler) GetMetricsStats(c *gin.Context) {
-	var request dto.GetShortenStats
-	if err := c.BindQuery(&request); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	target := c.Param("target")
-	shortenKey := c.Param("key")
-
-	shortenID, err := base62.Decode(shortenKey)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var stats domain.MetricStats
-	stats, err = handler.statsService.GetMetricStats(c,
-		target,
-		shortenID,
-		request,
-	)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
-}
-
-func (handler *ShortenHandler) GetSummaryMetricsStats(c *gin.Context) {
-	var request dto.GetShortenSummaryStats
-	if err := c.BindQuery(&request); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	target := c.Param("target")
-	shortenKey := c.Param("key")
-
-	shortenID, err := base62.Decode(shortenKey)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var stats domain.SummaryMetricStats
-	stats, err = handler.statsService.GetSummaryMetricStats(c,
-		target,
+	var stats domain.Stats
+	stats, err = handler.statsService.GetStats(c,
 		shortenID,
 		request,
 	)

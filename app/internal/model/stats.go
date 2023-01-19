@@ -2,6 +2,7 @@ package model
 
 import (
 	"cc/app/internal/domain"
+	"encoding/json"
 	"time"
 )
 
@@ -14,88 +15,42 @@ type Click struct {
 	Timestamp time.Time `db:"timestamp"`
 }
 
-type ClickState struct {
-	Count int       `db:"count"`
-	Date  time.Time `db:"date"`
+type ClickMetric struct {
+	Total  int `db:"total"`
+	Values []byte
 }
 
-type MetricState struct {
-	Name  string    `db:"name"`
-	Count int       `db:"count"`
-	Date  time.Time `db:"date"`
+type Metric struct {
+	Name   string `db:"name"`
+	Total  int    `db:"total"`
+	Values []byte
 }
 
-type MetricSummaryState struct {
-	Name  string `db:"name"`
-	Count int    `db:"count"`
+type Metrics []Metric
+
+func (m ClickMetric) Domain() (clickMetric domain.ClickMetric) {
+	clickMetric.Total = m.Total
+
+	_ = json.Unmarshal(m.Values, &clickMetric.Values)
+
+	return
 }
 
-type ClickStats []ClickState
+func (m Metric) Domain() (metric domain.Metric) {
+	metric.Name = m.Name
+	metric.Total = m.Total
 
-type MetricStats []MetricState
+	_ = json.Unmarshal(m.Values, &metric.Values)
 
-type MetricSummaryStats []MetricSummaryState
-
-func (clickState ClickState) Domain() domain.ClickState {
-	return domain.ClickState{
-		Count: clickState.Count,
-		Date:  clickState.Date,
-	}
+	return
 }
 
-func (metricState MetricState) Domain() domain.MetricState {
-	return domain.MetricState{
-		Name:  metricState.Name,
-		Count: metricState.Count,
-		Date:  metricState.Date,
-	}
-}
+func (m Metrics) Domain() []domain.Metric {
+	metrics := make([]domain.Metric, len(m))
 
-func (metricSummaryState MetricSummaryState) Domain() domain.SummaryMetricState {
-	return domain.SummaryMetricState{
-		Name:  metricSummaryState.Name,
-		Count: metricSummaryState.Count,
-	}
-}
-
-func (s ClickStats) Domain() []domain.ClickState {
-	if len(s) == 0 {
-		return []domain.ClickState{}
+	for i, v := range m {
+		metrics[i] = v.Domain()
 	}
 
-	clickStats := make([]domain.ClickState, len(s))
-
-	for i, shorten := range s {
-		clickStats[i] = shorten.Domain()
-	}
-
-	return clickStats
-}
-
-func (s MetricStats) Domain() []domain.MetricState {
-	if len(s) == 0 {
-		return []domain.MetricState{}
-	}
-
-	clickStats := make([]domain.MetricState, len(s))
-
-	for i, shorten := range s {
-		clickStats[i] = shorten.Domain()
-	}
-
-	return clickStats
-}
-
-func (s MetricSummaryStats) Domain() []domain.SummaryMetricState {
-	if len(s) == 0 {
-		return []domain.SummaryMetricState{}
-	}
-
-	clickStats := make([]domain.SummaryMetricState, len(s))
-
-	for i, shorten := range s {
-		clickStats[i] = shorten.Domain()
-	}
-
-	return clickStats
+	return metrics
 }
