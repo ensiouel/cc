@@ -44,7 +44,7 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 	}
 	err = service.storage.CreateSession(ctx, sssn)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return session, apperr.SetScope("create session")
 		}
 
@@ -64,7 +64,7 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 	var sssn model.Session
 	sssn, err = service.storage.GetSessionByRefreshToken(ctx, request.RefreshToken)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return session, apperr.SetScope("update session")
 		}
 
@@ -84,7 +84,7 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 
 	err = service.storage.UpdateSession(ctx, sssn)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return session, apperr.SetScope("update session")
 		}
 
@@ -105,7 +105,7 @@ func (service *authService) ParseToken(payload string) (token *jwt.Token, err er
 		return []byte(service.signingKey), nil
 	})
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return token, apperr.SetScope("parse token")
 		}
 
@@ -127,7 +127,7 @@ func createToken(userID uuid.UUID, signingKey string, expirationTime time.Time) 
 
 	accessToken, err = token.SignedString([]byte(signingKey))
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return accessToken, apperr.SetScope("create token")
 		}
 

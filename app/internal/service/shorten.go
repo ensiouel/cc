@@ -45,7 +45,7 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 		var exists bool
 		exists, err = service.storage.ExistsShortenByID(ctx, userID, id)
 		if err != nil {
-			if apperr, ok := apperror.Internal(err); ok {
+			if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 				return shorten, apperr.SetScope("create shorten")
 			}
 
@@ -71,7 +71,7 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 	var exists bool
 	exists, err = service.storage.ExistsShortenByURL(ctx, userID, request.URL)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("create shorten")
 		}
 
@@ -97,7 +97,7 @@ func (service *shortenService) CreateShorten(ctx context.Context, userID uuid.UU
 	}
 	err = service.storage.CreateShorten(ctx, shrtn)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("create shorten")
 		}
 
@@ -111,7 +111,7 @@ func (service *shortenService) UpdateShorten(ctx context.Context, userID uuid.UU
 	var shrtn model.Shorten
 	shrtn, err = service.storage.GetShortenByID(ctx, shortenID)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("update shorten")
 		}
 
@@ -129,7 +129,7 @@ func (service *shortenService) UpdateShorten(ctx context.Context, userID uuid.UU
 
 	err = service.storage.UpdateShorten(ctx, shrtn)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("update shorten")
 		}
 
@@ -143,7 +143,7 @@ func (service *shortenService) DeleteShorten(ctx context.Context, userID uuid.UU
 	var exists bool
 	exists, err = service.storage.ExistsShortenByID(ctx, userID, shortenID)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return apperr.SetScope("delete shorten")
 		}
 
@@ -159,7 +159,7 @@ func (service *shortenService) GetShortenByID(ctx context.Context, id uint64) (s
 	var shrtn model.Shorten
 	shrtn, err = service.storage.GetShortenByID(ctx, id)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("get shorten by id")
 		}
 
@@ -173,7 +173,7 @@ func (service *shortenService) GetShortenByURL(ctx context.Context, url string) 
 	var shrtn model.Shorten
 	shrtn, err = service.storage.GetShortenByURL(ctx, url)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shorten, apperr.SetScope("get shorten by url")
 		}
 
@@ -186,7 +186,7 @@ func (service *shortenService) GetShortenByURL(ctx context.Context, url string) 
 func (service *shortenService) GetShortenURL(ctx context.Context, shortenID uint64) (url string, err error) {
 	url, err = service.storage.GetShortenURL(ctx, shortenID)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return url, apperr.SetScope("get Shorten url")
 		}
 
@@ -200,7 +200,7 @@ func (service *shortenService) SelectShortensByUserID(ctx context.Context, id uu
 	var shrtns model.Shortens
 	shrtns, err = service.storage.SelectShortensByUserID(ctx, id)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return shortens, apperr.SetScope("select shortens by user id")
 		}
 

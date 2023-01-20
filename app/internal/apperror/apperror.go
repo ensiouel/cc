@@ -5,34 +5,34 @@ import (
 )
 
 const (
-	codeUnknownError errs.ErrorCode = iota - 1
-	codeInternalError
-	codeNotExists
-	codeAlreadyExists
-	codeInvalidParams
-	codeInvalidCredentials
-	codeUnauthorized
+	Unknown errs.ErrorCode = iota - 1
+	Internal
+	NotExists
+	AlreadyExists
+	InvalidParams
+	InvalidCredentials
+	Unauthorized
 )
 
-func Internal(err error) (internal errs.Error, ok bool) {
-	internal, ok = err.(errs.Error)
+func Is(target error, code errs.ErrorCode) (err errs.Error, ok bool) {
+	err, ok = target.(errs.Error)
 	if !ok {
 		return
 	}
 
-	if internal.Code != codeInternalError {
-		return internal, false
+	if err.Code != code {
+		return err, false
 	}
 
 	return
 }
 
 var (
-	ErrUnknownError       = codeUnknownError.New("unknown error")
-	ErrInternalError      = codeInternalError.New("internal error")
-	ErrNotExists          = codeNotExists.New("not exists")
-	ErrAlreadyExists      = codeAlreadyExists.New("already exists")
-	ErrInvalidParams      = codeInvalidParams.New("invalid params")
-	ErrInvalidCredentials = codeInvalidCredentials.New("invalid credentials")
-	ErrUnauthorized       = codeUnauthorized.New("unauthorized")
+	ErrUnknownError       = Unknown.New("unknown error")
+	ErrInternalError      = Internal.New("internal error")
+	ErrNotExists          = NotExists.New("not exists")
+	ErrAlreadyExists      = AlreadyExists.New("already exists")
+	ErrInvalidParams      = InvalidParams.New("invalid params")
+	ErrInvalidCredentials = InvalidCredentials.New("invalid credentials")
+	ErrUnauthorized       = Unauthorized.New("unauthorized")
 )

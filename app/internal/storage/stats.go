@@ -9,11 +9,21 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+const (
+	PlatformColumn = "platform"
+	OSColumn       = "os"
+	RefererColumn  = "referer"
+)
+
 type StatsStorage interface {
 	CreateClick(ctx context.Context, click model.Click) error
 
 	SelectClickMetric(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) (model.ClickMetric, error)
 	SelectMetrics(ctx context.Context, shortenID uint64, target, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
+
+	SelectPlatformMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
+	SelectOSMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
+	SelectRefererMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
 }
 
 type statsStorage struct {
@@ -114,4 +124,16 @@ GROUP BY metric.name;
 	}
 
 	return
+}
+
+func (storage *statsStorage) SelectPlatformMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, PlatformColumn, from, to, unit, units)
+}
+
+func (storage *statsStorage) SelectOSMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, OSColumn, from, to, unit, units)
+}
+
+func (storage *statsStorage) SelectRefererMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, RefererColumn, from, to, unit, units)
 }

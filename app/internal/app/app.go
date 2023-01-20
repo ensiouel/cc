@@ -25,6 +25,7 @@ type App struct {
 func New() (app *App) {
 	app = &App{}
 	app.cfg = config.New()
+
 	return
 }
 

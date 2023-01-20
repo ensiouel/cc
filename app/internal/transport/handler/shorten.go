@@ -44,7 +44,6 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 
 func (handler *ShortenHandler) Redirect(c *gin.Context) {
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		c.Status(http.StatusNotFound)
@@ -87,7 +86,6 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 
 func (handler *ShortenHandler) GetShorten(c *gin.Context) {
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
@@ -157,7 +155,6 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	}
 
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
@@ -219,7 +216,6 @@ func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 	}
 
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)

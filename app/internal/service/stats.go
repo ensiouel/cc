@@ -32,13 +32,13 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 		ShortenID: request.ShortenID,
 		Platform:  request.Platform,
 		OS:        request.OS,
-		Referrer:  request.Referrer,
+		Referrer:  request.Referer,
 		IP:        request.IP,
 		Timestamp: request.Timestamp,
 	}
 	err = service.storage.CreateClick(ctx, clck)
 	if err != nil {
-		if apperr, ok := apperror.Internal(err); ok {
+		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
 			return apperr.SetScope("create click")
 		}
 
@@ -69,9 +69,9 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 		os = "Other"
 	}
 
-	referrer, _ := url.Parse(referer)
-	if referrer.Host == "" {
-		referrer.Host = "Other"
+	refererURL, _ := url.Parse(referer)
+	if refererURL.Host == "" {
+		refererURL.Host = "Other"
 	}
 
 	if userAgent.Bot || (platform == "Other" && os == "Other") {
@@ -82,7 +82,7 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 		ShortenID: shortenID,
 		Platform:  platform,
 		OS:        os,
-		Referrer:  referrer.Host,
+		Referer:   refererURL.Host,
 		IP:        ip,
 		Timestamp: timestamp,
 	})
@@ -102,21 +102,21 @@ func (service *statsService) GetStats(ctx context.Context, shortenID uint64, req
 	stats.Click = clickMetric.Domain()
 
 	var platformMetrics model.Metrics
-	platformMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "platform", request.From, request.To, request.Unit, request.Units)
+	platformMetrics, err = service.storage.SelectPlatformMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
 		return
 	}
 	stats.Platform = platformMetrics.Domain()
 
 	var osMetrics model.Metrics
-	osMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "os", request.From, request.To, request.Unit, request.Units)
+	osMetrics, err = service.storage.SelectOSMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
 		return
 	}
 	stats.OS = osMetrics.Domain()
 
 	var refererMetrics model.Metrics
-	refererMetrics, err = service.storage.SelectMetrics(ctx, shortenID, "referrer", request.From, request.To, request.Unit, request.Units)
+	refererMetrics, err = service.storage.SelectRefererMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
 		return
 	}
