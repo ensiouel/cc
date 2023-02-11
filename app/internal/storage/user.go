@@ -35,7 +35,7 @@ VALUES
 
 	_, err = storage.client.Exec(ctx, q, user.ID, user.Name, user.Password)
 	if err != nil {
-		return apperror.ErrInternalError.SetError(err)
+		return apperror.Internal.WithError(err)
 	}
 
 	return
@@ -54,10 +54,10 @@ WHERE
 	err = storage.client.Get(ctx, &user, q, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, apperror.ErrNotExists
+			return user, apperror.NotExists
 		}
 
-		return user, apperror.ErrInternalError.SetError(err)
+		return user, apperror.Internal.WithError(err)
 	}
 
 	return
@@ -76,10 +76,10 @@ WHERE
 	err = storage.client.Get(ctx, &user, q, name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, apperror.ErrNotExists
+			return user, apperror.NotExists
 		}
 
-		return user, apperror.ErrInternalError.SetError(err)
+		return user, apperror.Internal.WithError(err)
 	}
 
 	return
@@ -100,7 +100,7 @@ SELECT
 
 	err = storage.client.Get(ctx, &exists, q, name)
 	if err != nil {
-		return exists, apperror.ErrInternalError.SetError(err)
+		return exists, apperror.Internal.WithError(err)
 	}
 
 	return

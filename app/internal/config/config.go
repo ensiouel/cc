@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"log"
+	"time"
 )
 
 var (
@@ -22,13 +23,13 @@ type Config struct {
 	Server     Server     `yaml:"server"`
 	Postgres   Postgres   `yaml:"postgres"`
 	Auth       Auth       `yaml:"auth"`
-	Shorten    Shorten    `yaml:"shorten"`
 	Prometheus Prometheus `yaml:"prometheus"`
 	Redis      Redis      `yaml:"redis"`
 }
 
 type Server struct {
-	Addr string `yaml:"addr" env:"HOST_ADDR" env-default:":8081"`
+	Addr string `yaml:"addr" env:"HOST_ADDR" env-default:":8080"`
+	Host string `yaml:"host" env:"SERVER_HOST"`
 }
 
 type Postgres struct {
@@ -40,11 +41,8 @@ type Postgres struct {
 }
 
 type Auth struct {
-	SigningKey string `yaml:"signing_key" env:"AUTH_SIGNING_KEY" env-required:"true"`
-}
-
-type Shorten struct {
-	Host string `yaml:"host" env:"SHORTEN_HOST"`
+	ExpirationTime time.Duration `yaml:"expiration_time"`
+	SigningKey     string        `yaml:"signing_key" env:"AUTH_SIGNING_KEY" env-required:"true"`
 }
 
 type Prometheus struct {

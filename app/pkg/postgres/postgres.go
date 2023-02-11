@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
@@ -19,6 +20,8 @@ type Config struct {
 
 type Client interface {
 	Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, query string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...any) pgx.Row
 	Get(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 	Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 }
@@ -49,10 +52,18 @@ func (c *client) Exec(ctx context.Context, query string, args ...any) (pgconn.Co
 	return c.pool.Exec(ctx, query, args...)
 }
 
-func (c *client) Get(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+func (c *client) Get(ctx context.Context, dest interface{}, query string, args ...any) error {
 	return pgxscan.Get(ctx, c.pool, dest, query, args...)
 }
 
-func (c *client) Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+func (c *client) Select(ctx context.Context, dest interface{}, query string, args ...any) error {
 	return pgxscan.Select(ctx, c.pool, dest, query, args...)
+}
+
+func (c *client) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
+	return c.pool.Query(ctx, query, args...)
+}
+
+func (c *client) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	return c.pool.QueryRow(ctx, query, args...)
 }

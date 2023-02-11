@@ -5,12 +5,11 @@ import (
 )
 
 const (
-	UnitMinute Unit = "minute"
-	UnitHour   Unit = "hour"
-	UnitDay    Unit = "day"
-	UnitWeek   Unit = "week"
-	UnitMonth  Unit = "month"
-	UnitYear   Unit = "year"
+	UnitHour  Unit = "hour"
+	UnitDay   Unit = "day"
+	UnitWeek  Unit = "week"
+	UnitMonth Unit = "month"
+	UnitYear  Unit = "year"
 )
 
 type Unit string
@@ -19,39 +18,32 @@ type Click struct {
 	ShortenID uint64    `json:"shorten_id"`
 	Platform  string    `json:"platform"`
 	OS        string    `json:"os"`
-	Referrer  string    `json:"referrer"`
+	Referer   string    `json:"referer"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
-type ClickState struct {
-	Count int       `json:"count"`
-	Date  time.Time `json:"date"`
+type Stats struct {
+	Click    ClickMetric `json:"click"`
+	Platform []Metric    `json:"platform"`
+	OS       []Metric    `json:"os"`
+	Referer  []Metric    `json:"referer"`
 }
 
-type MetricState struct {
-	Name  string    `json:"name"`
-	Count int       `json:"count"`
-	Date  time.Time `json:"date"`
+type ClickMetric struct {
+	Total  int `json:"total"`
+	Diff   int `json:"diff"`
+	Values []struct {
+		Timestamp time.Time `json:"timestamp"`
+		Count     int       `json:"count"`
+	} `json:"values"`
 }
 
-type SummaryMetricState struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
-}
-
-type ClickStats struct {
-	Total  int          `json:"total"`
-	Clicks []ClickState `json:"clicks"`
-	Unit   Unit         `json:"unit"`
-	Units  int          `json:"units"`
-}
-
-type MetricStats struct {
-	Metrics []MetricState `json:"metrics"`
-	Unit    Unit          `json:"unit"`
-	Units   int           `json:"units"`
-}
-
-type SummaryMetricStats struct {
-	Metrics []SummaryMetricState `json:"metrics"`
+type Metric struct {
+	Name   string `json:"name"`
+	Total  int    `json:"total"`
+	Diff   int    `json:"diff"`
+	Values []struct {
+		Timestamp time.Time `json:"timestamp"`
+		Count     int       `json:"count"`
+	} `json:"values"`
 }

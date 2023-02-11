@@ -2,59 +2,32 @@ package storage
 
 import (
 	"cc/app/internal/apperror"
+	"cc/app/internal/domain"
 	"cc/app/internal/model"
 	"cc/app/pkg/postgres"
 	"context"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
-	"time"
 )
 
-/*
-
-SelectClicks
-{
-	"total": 1000,
-	"clicks": [
-		{
-			"count": 2,
-			"date": ""
-		},
-		{
-			"count": 4,
-			"date": ""
-		},
-	]
-}
-
-SelectUniqueClicks
-{
-	"total": 998,
-	"clicks": [
-		{
-			"count": 2,
-			"date": ""
-		},
-		{
-			"count": 2,
-			"date": ""
-		},
-	]
-}
-
-*/
+const (
+	PlatformColumn = "platform"
+	OSColumn       = "os"
+	RefererColumn  = "referer"
+)
 
 type StatsStorage interface {
 	CreateClick(ctx context.Context, click model.Click) error
 
-	SelectUniqueClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string, units int) ([]model.ClickState, error)
-	SelectClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string, units int) ([]model.ClickState, error)
+	GetClicksSummary(ctx context.Context, shortenID uint64, from, to string) (int64, error)
+	SelectClicks(ctx context.Context, shortenID uint64, from, to string) ([]model.Click, error)
 
-	GetTotalClicks(ctx context.Context, shortenID uint64, from, to time.Time) (int, error)
-	GetTotalUniqueClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string) (int, error)
+	SelectClickMetric(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) (model.ClickMetric, error)
+	SelectMetrics(ctx context.Context, shortenID uint64, target, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
 
-	SelectMetrics(ctx context.Context, target string, shortenID uint64, from, to time.Time, unit string, units int) ([]model.MetricState, error)
-	SelectSummaryMetrics(ctx context.Context, target string, shortenID uint64, from, to time.Time) ([]model.MetricSummaryState, error)
+	SelectPlatformMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
+	SelectOSMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
+	SelectRefererMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error)
 }
 
 type statsStorage struct {
@@ -68,7 +41,7 @@ func NewStatsStorage(client postgres.Client) StatsStorage {
 func (storage *statsStorage) CreateClick(ctx context.Context, click model.Click) (err error) {
 	q := `
 INSERT INTO 
-    clicks (shorten_id, platform, os, referrer, ip, timestamp) 
+    clicks (shorten_id, platform, os, referer, ip, timestamp) 
 VALUES 
     ($1, $2, $3, $4, $5, $6)
 `
@@ -77,221 +50,157 @@ VALUES
 		click.ShortenID,
 		click.Platform,
 		click.OS,
-		click.Referrer,
+		click.Referer,
 		click.IP,
 		click.Timestamp,
 	)
 	if err != nil {
-		return apperror.ErrInternalError.SetError(err)
+		return apperror.Internal.WithError(err)
 	}
 
 	return
 }
 
-func (storage *statsStorage) SelectClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string, units int) (stats []model.ClickState, err error) {
+func (storage *statsStorage) GetClicksSummary(ctx context.Context, shortenID uint64, from, to string) (total int64, err error) {
 	q := `
-WITH RANGE (f, t, i) as (
-    VALUES ($1::TIMESTAMPTZ, $2::TIMESTAMPTZ + INTERVAL '23 hour 59 minute', $3)
-),
-clicks AS (
-    SELECT
-    	shorten_id, date_trunc(RANGE.i, timestamp) as timestamp
-    FROM
-        clicks, RANGE
-    WHERE
-        shorten_id = $4 AND
-        timestamp BETWEEN RANGE.f AND RANGE.t
-),
-RANGE_SERIES AS (
-    SELECT
-        GENERATE_SERIES AS timestamp
-    FROM
-        RANGE,
-        GENERATE_SERIES (
-            (SELECT MIN(date_trunc(RANGE.i, timestamp)) FROM clicks),
-            (SELECT MAX(date_trunc(RANGE.i, timestamp)) FROM clicks),
-            (1 || RANGE.i)::interval
-        )
-)
 SELECT
-    RANGE_SERIES.timestamp as date,
-    COUNT(shorten_id) as count
-FROM
-    RANGE_SERIES
-LEFT JOIN
-    clicks
-ON
-	RANGE_SERIES.timestamp = clicks.timestamp
-GROUP BY
-    RANGE_SERIES.timestamp
-ORDER BY
-    RANGE_SERIES.timestamp;
+    COUNT(*) as total
+FROM clicks
+WHERE shorten_id = $1
+  AND timestamp BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ + INTERVAL '23 hour 59 minute';
 `
 
-	//TODO fix it
-	err = storage.client.Select(ctx, &stats, q, from.Format("2006-01-02"), to.Format("2006-01-02"), unit, shortenID)
+	err = storage.client.Get(ctx, &total, q, shortenID, from, to)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return total, apperror.Internal.WithError(err)
+	}
+
+	return
+}
+
+func (storage *statsStorage) SelectClicks(ctx context.Context, shortenID uint64, from, to string) (clicks []model.Click, err error) {
+	q := `
+SELECT shorten_id,
+       platform,
+       os,
+       referer,
+       ip,
+       timestamp
+FROM clicks
+WHERE shorten_id = $1
+  AND timestamp BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ + INTERVAL '23 hour 59 minute'
+`
+
+	err = storage.client.Select(ctx, &clicks, q, shortenID, from, to)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return clicks, apperror.Internal.WithError(err)
+	}
+
+	return
+}
+
+func (storage *statsStorage) SelectClickMetric(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) (metric model.ClickMetric, err error) {
+	q := `
+WITH input ("from", "to", unit) AS (VALUES ($2::TIMESTAMPTZ,
+                                            $3::TIMESTAMPTZ, $4)),
+     series AS (SELECT GENERATE_SERIES(
+                               DATE_TRUNC(input.unit, input."from"),
+                               DATE_TRUNC(input.unit, input."to" + INTERVAL '23 hour 59 minute'),
+                               (1 || input.unit)::INTERVAL
+                           ) AS timestamp
+                FROM input),
+     click AS (SELECT clicks.shorten_id,
+                      DATE_TRUNC(input.unit, timestamp) AS timestamp
+               FROM clicks,
+                    input
+               WHERE clicks.shorten_id = $1
+                 AND timestamp BETWEEN input."from" AND input."to" + INTERVAL '23 hour 59 minute'),
+     metric AS (SELECT COUNT(shorten_id) AS count, series.timestamp AS timestamp
+                FROM series
+                         LEFT JOIN click ON series.timestamp = click.timestamp
+                GROUP BY series.timestamp
+                ORDER BY series.timestamp),
+     previous AS (SELECT COUNT(*) AS count
+                  FROM clicks,
+                       input
+                  WHERE clicks.shorten_id = $1
+                    AND timestamp BETWEEN (input."from" - '1 day'::INTERVAL) - (input."to" - input."from") AND input."from" - INTERVAL '1 day' + INTERVAL '23 hour 59 minute')
+SELECT SUM(metric.count)                                                                 AS total,
+       SUM(metric.count) - COALESCE(previous.count, 0)                                   AS diff,
+       JSON_AGG(JSON_BUILD_OBJECT('timestamp', metric.timestamp, 'count', metric.count)) AS values
+FROM metric,
+     previous
+GROUP BY previous.count
+`
+
+	err = storage.client.QueryRow(ctx, q, shortenID, from, to, unit).Scan(
+		&metric.Total,
+		&metric.Diff,
+		&metric.Values,
+	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return stats, apperror.ErrNotExists
+		return metric, apperror.Internal.WithError(err)
+	}
+
+	return
+}
+
+func (storage *statsStorage) SelectMetrics(ctx context.Context, shortenID uint64, target, from, to string, unit domain.Unit, units int) (metrics []model.Metric, err error) {
+	q := `
+WITH input ("from", "to", unit) AS (VALUES ($2::TIMESTAMPTZ,
+                                                        $3::TIMESTAMPTZ, $4)),
+     metric AS (SELECT ` + target + `                          AS name,
+                       COUNT(*)                          AS count,
+                       DATE_TRUNC(input.unit, timestamp) AS trunc_timestamp
+                FROM clicks,
+                     input
+                WHERE timestamp BETWEEN input."from" AND input."to" + INTERVAL '23 hour 59 minute'
+                  AND clicks.shorten_id = $1
+                GROUP BY name, trunc_timestamp
+                ORDER BY trunc_timestamp),
+     previous AS (SELECT ` + target + ` AS name, COUNT(*) AS count
+                  FROM clicks,
+                       input
+                  WHERE clicks.shorten_id = $1
+                    AND timestamp BETWEEN (input."from" - INTERVAL '1 day') - (input."to" - input."from") AND input."from" - INTERVAL '1 day' + INTERVAL '23 hour 59 minute'
+                  GROUP BY name)
+SELECT metric.name                                                                               AS name,
+       SUM(metric.count)                                                                         AS total,
+       SUM(metric.count) - COALESCE(previous.count, 0)                                           AS diff,
+       JSONB_AGG(JSONB_BUILD_OBJECT('timestamp', metric.trunc_timestamp, 'count', metric.count)) AS values
+FROM metric
+         LEFT JOIN previous ON metric.name = previous.name
+GROUP BY metric.name, previous.count;
+`
+
+	var rows pgx.Rows
+	rows, err = storage.client.Query(ctx, q, shortenID, from, to, unit)
+	if err != nil {
+		return metrics, apperror.Internal.WithError(err)
+	}
+
+	for rows.Next() {
+		var metric model.Metric
+
+		err = rows.Scan(&metric.Name, &metric.Total, &metric.Diff, &metric.Values)
+		if err != nil {
+			return metrics, apperror.Internal.WithError(err)
 		}
 
-		return stats, apperror.ErrInternalError.SetError(err)
+		metrics = append(metrics, metric)
 	}
 
 	return
 }
 
-func (storage *statsStorage) SelectUniqueClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string, units int) (stats []model.ClickState, err error) {
-	q := `
-WITH RANGE (f, t, i) as (
-    VALUES ($1::TIMESTAMPTZ, $2::TIMESTAMPTZ + INTERVAL '23 hour 59 minute', $3)
-),
-new_clicks AS (
-    SELECT DISTINCT ON (ip, date_trunc(RANGE.i, timestamp))
-        shorten_id, date_trunc(RANGE.i, timestamp) as timestamp
-    FROM
-        clicks, RANGE
-    WHERE
-        shorten_id = $4 AND
-        timestamp BETWEEN RANGE.f AND RANGE.t
-),
-RANGE_SERIES AS (
-    SELECT
-        GENERATE_SERIES AS timestamp
-    FROM
-        RANGE,
-        GENERATE_SERIES (
-            (SELECT MIN(date_trunc(RANGE.i, timestamp)) FROM new_clicks),
-            (SELECT MAX(date_trunc(RANGE.i, timestamp)) FROM new_clicks),
-            (1 || RANGE.i)::interval
-        )
-)
-SELECT
-    COUNT(shorten_id) as count,
-    RANGE_SERIES.timestamp as date
-FROM
-    RANGE_SERIES
-LEFT JOIN
-    new_clicks
-ON
-    RANGE_SERIES.timestamp = new_clicks.timestamp
-GROUP BY
-    RANGE_SERIES.timestamp
-ORDER BY
-    RANGE_SERIES.timestamp;
-`
-
-	err = storage.client.Select(ctx, &stats, q, from.Format("2006-01-02"), to.Format("2006-01-02"), unit, shortenID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return stats, apperror.ErrNotExists
-		}
-
-		return stats, apperror.ErrInternalError.SetError(err)
-	}
-
-	return
+func (storage *statsStorage) SelectPlatformMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, PlatformColumn, from, to, unit, units)
 }
 
-func (storage *statsStorage) GetTotalClicks(ctx context.Context, shortenID uint64, from, to time.Time) (clicks int, err error) {
-	q := `
-SELECT 
-    COUNT(shorten_id)
-FROM 
-    clicks
-WHERE 
-    shorten_id = $1 AND
-    timestamp BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ + INTERVAL '23 hour 59 minute'
-`
-
-	err = storage.client.Get(ctx, &clicks, q, shortenID, from.Format("2006-01-02"), to.Format("2006-01-02"))
-	if err != nil {
-		return
-	}
-
-	return
+func (storage *statsStorage) SelectOSMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, OSColumn, from, to, unit, units)
 }
 
-func (storage *statsStorage) GetTotalUniqueClicks(ctx context.Context, shortenID uint64, from, to time.Time, unit string) (clicks int, err error) {
-	q := `
-SELECT
-    COUNT(DISTINCT (ip, date_trunc($4, timestamp)))
-FROM
-    clicks
-WHERE
-    shorten_id = $1 AND
-    timestamp BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ + INTERVAL '23 hour 59 minute'
-`
-
-	err = storage.client.Get(ctx, &clicks, q, shortenID, from.Format("2006-01-02"), to.Format("2006-01-02"), unit)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func (storage *statsStorage) SelectMetrics(ctx context.Context, target string, shortenID uint64, from, to time.Time, unit string, units int) (stats []model.MetricState, err error) {
-	q := `
-WITH RANGE (f, t, i) as (
-    VALUES ($1::TIMESTAMPTZ, $2::TIMESTAMPTZ + INTERVAL '23 hour 59 minute', $3)
-),
-select_clicks AS (
-    SELECT
-        shorten_id, ` + target + ` as name, date_trunc(RANGE.i, timestamp) as timestamp
-    FROM
-        clicks, RANGE
-    WHERE
-        shorten_id = $4 AND
-        timestamp BETWEEN RANGE.f AND RANGE.t
-)
-SELECT
-    name,
-    COUNT(shorten_id) as count,
-    timestamp as date
-FROM
-    select_clicks
-GROUP BY
-    shorten_id, timestamp, name
-ORDER BY
-    timestamp;
-`
-
-	err = storage.client.Select(ctx, &stats, q, from.Format("2006-01-02"), to.Format("2006-01-02"), unit, shortenID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return stats, apperror.ErrNotExists
-		}
-
-		return stats, apperror.ErrInternalError.SetError(err)
-	}
-
-	return
-}
-
-func (storage *statsStorage) SelectSummaryMetrics(ctx context.Context, target string, shortenID uint64, from, to time.Time) (stats []model.MetricSummaryState, err error) {
-	q := `
-WITH RANGE (f, t) as (
-    values ($1::TIMESTAMPTZ, $2::TIMESTAMPTZ + INTERVAL '23 hour 59 minute')
-)
-SELECT
-    ` + target + ` as name, COUNT(shorten_id) as count
-FROM
-    clicks, RANGE
-WHERE
-    shorten_id = $3 AND
-    timestamp BETWEEN RANGE.f AND RANGE.t
-GROUP BY shorten_id, name;
-`
-
-	err = storage.client.Select(ctx, &stats, q, from.Format("2006-01-02"), to.Format("2006-01-02"), shortenID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return stats, apperror.ErrNotExists
-		}
-
-		return stats, apperror.ErrInternalError.SetError(err)
-	}
-
-	return
+func (storage *statsStorage) SelectRefererMetrics(ctx context.Context, shortenID uint64, from, to string, unit domain.Unit, units int) ([]model.Metric, error) {
+	return storage.SelectMetrics(ctx, shortenID, RefererColumn, from, to, unit, units)
 }

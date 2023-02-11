@@ -7,6 +7,9 @@ import (
 )
 
 func init() {
+	loc, _ := time.LoadLocation("UTC")
+	time.Local = loc
+	
 	rand.Seed(time.Now().UnixNano())
 }
 

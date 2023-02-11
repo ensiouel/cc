@@ -1,18 +1,21 @@
 package handler
 
 import (
-	"cc/app/internal/apperror"
 	"cc/app/internal/domain"
 	"cc/app/internal/dto"
 	"cc/app/internal/service"
 	"cc/app/internal/transport"
-	"cc/app/internal/transport/middleware/auth"
+	"cc/app/internal/transport/middleware"
 	"cc/app/pkg/base62"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
+	"log"
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -20,24 +23,22 @@ type ShortenHandler struct {
 	shortenService service.ShortenService
 	authService    service.AuthService
 	statsService   service.StatsService
+	tagService     service.TagService
 	cache          *redis.Client
 }
 
-func NewShortenHandler(shortenService service.ShortenService, authService service.AuthService, statsService service.StatsService, cache *redis.Client) transport.Handler {
-	return &ShortenHandler{shortenService: shortenService, authService: authService, statsService: statsService, cache: cache}
+func NewShortenHandler(shortenService service.ShortenService, authService service.AuthService, statsService service.StatsService, tagService service.TagService, cache *redis.Client) transport.Handler {
+	return &ShortenHandler{shortenService: shortenService, authService: authService, statsService: statsService, tagService: tagService, cache: cache}
 }
 
 func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 	group.GET("/:key", handler.Redirect)
 
 	authorized := group.Group("/")
-	authorized.Use(auth.Middleware(handler.authService))
+	authorized.Use(middleware.Auth(handler.authService))
 	{
-		authorized.GET("/api/shortens/:key/clicks", handler.GetClicksStats)
-		authorized.GET("/api/shortens/:key/clicks/unique", handler.GetUniqueClicksStats)
-
-		authorized.GET("/api/shortens/:key/metrics/:target", handler.GetMetricsStats)
-		authorized.GET("/api/shortens/:key/metrics/:target/summary", handler.GetSummaryMetricsStats)
+		authorized.GET("/api/shortens/:key/stats", handler.GetShortenStats)
+		authorized.GET("/api/shortens/:key/stats/export", handler.ExportShortenStats)
 
 		authorized.POST("/api/shortens", handler.CreateShorten)
 		authorized.GET("/api/shortens/:key", handler.GetShorten)
@@ -48,24 +49,23 @@ func (handler *ShortenHandler) Register(group *gin.RouterGroup) {
 
 func (handler *ShortenHandler) Redirect(c *gin.Context) {
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
-		c.Status(http.StatusNotFound)
+		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 
 	var url string
 	url, err = handler.cache.Get(c, "shorten:"+shortenKey).Result()
 	if err != nil && errors.Is(err, redis.Nil) == false {
-		_ = c.Error(apperror.ErrInternalError.SetError(err))
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
 	if url == "" {
-		url, err = handler.shortenService.GetShortenURL(c, shortenID)
+		url, err = handler.shortenService.GetURL(c, shortenID)
 		if err != nil {
-			c.Status(http.StatusNotFound)
+			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
@@ -82,7 +82,8 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 		c.ClientIP(),
 	)
 	if err != nil {
-		_ = c.Error(err)
+		log.Println(err)
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
@@ -91,7 +92,6 @@ func (handler *ShortenHandler) Redirect(c *gin.Context) {
 
 func (handler *ShortenHandler) GetShorten(c *gin.Context) {
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
@@ -99,7 +99,7 @@ func (handler *ShortenHandler) GetShorten(c *gin.Context) {
 	}
 
 	var shorten domain.Shorten
-	shorten, err = handler.shortenService.GetShortenByID(c,
+	shorten, err = handler.shortenService.GetByID(c,
 		shortenID,
 	)
 	if err != nil {
@@ -129,7 +129,7 @@ func (handler *ShortenHandler) CreateShorten(c *gin.Context) {
 		userID = value.(uuid.UUID)
 	}
 
-	shorten, err := handler.shortenService.CreateShorten(c,
+	shorten, err := handler.shortenService.Create(c,
 		userID,
 		request,
 	)
@@ -161,7 +161,6 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	}
 
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
@@ -169,7 +168,7 @@ func (handler *ShortenHandler) UpdateShorten(c *gin.Context) {
 	}
 
 	var shorten domain.Shorten
-	shorten, err = handler.shortenService.UpdateShorten(c,
+	shorten, err = handler.shortenService.Update(c,
 		userID,
 		shortenID,
 		request,
@@ -196,7 +195,7 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 		userID = value.(uuid.UUID)
 	}
 
-	err = handler.shortenService.DeleteShorten(c,
+	err = handler.shortenService.Delete(c,
 		userID,
 		shortenID,
 	)
@@ -210,7 +209,7 @@ func (handler *ShortenHandler) DeleteShorten(c *gin.Context) {
 	})
 }
 
-func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
+func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 	var request dto.GetShortenStats
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
@@ -223,16 +222,14 @@ func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
 	}
 
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
-
 		return
 	}
 
-	var stats domain.ClickStats
-	stats, err = handler.statsService.GetClickStats(c,
+	var stats domain.Stats
+	stats, err = handler.statsService.GetStats(c,
 		shortenID,
 		request,
 	)
@@ -246,8 +243,8 @@ func (handler *ShortenHandler) GetClicksStats(c *gin.Context) {
 	})
 }
 
-func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
-	var request dto.GetShortenStats
+func (handler *ShortenHandler) ExportShortenStats(c *gin.Context) {
+	var request dto.ExportShortenStats
 	if err := c.BindQuery(&request); err != nil {
 		_ = c.Error(err)
 		return
@@ -259,98 +256,123 @@ func (handler *ShortenHandler) GetUniqueClicksStats(c *gin.Context) {
 	}
 
 	shortenKey := c.Param("key")
-
 	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	var stats domain.ClickStats
-	stats, err = handler.statsService.GetUniqueClickStats(c,
+	path := filepath.Join(
+		"excels",
+		fmt.Sprintf("%s_%s_%s",
+			shortenKey,
+			request.From,
+			request.To,
+		)+".xlsx",
+	)
+
+	var total int64
+	total, err = handler.statsService.GetClicksSummary(c,
 		shortenID,
-		request,
+		request.From,
+		request.To,
 	)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
-}
+	from, _ := time.Parse("2006-01-02", request.From)
+	to, _ := time.Parse("2006-01-02", request.To)
 
-func (handler *ShortenHandler) GetMetricsStats(c *gin.Context) {
-	var request dto.GetShortenStats
-	if err := c.BindQuery(&request); err != nil {
-		_ = c.Error(err)
-		return
+	beforeRequest := dto.ExportShortenStats{
+		From: from.Add(from.Add(-24 * time.Hour).Sub(to)).Format("2006-01-02"),
+		To:   from.Add(-24 * time.Hour).Format("2006-01-02"),
 	}
 
-	if err := request.Validate(); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	target := c.Param("target")
-	shortenKey := c.Param("key")
-
-	shortenID, err := base62.Decode(shortenKey)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var stats domain.MetricStats
-	stats, err = handler.statsService.GetMetricStats(c,
-		target,
+	var totalBefore int64
+	totalBefore, err = handler.statsService.GetClicksSummary(c,
 		shortenID,
-		request,
+		beforeRequest.From,
+		beforeRequest.To,
 	)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
-}
-
-func (handler *ShortenHandler) GetSummaryMetricsStats(c *gin.Context) {
-	var request dto.GetShortenSummaryStats
-	if err := c.BindQuery(&request); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	target := c.Param("target")
-	shortenKey := c.Param("key")
-
-	shortenID, err := base62.Decode(shortenKey)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	var stats domain.SummaryMetricStats
-	stats, err = handler.statsService.GetSummaryMetricStats(c,
-		target,
-		shortenID,
-		request,
-	)
+	shorten, err := handler.shortenService.GetByID(c, shortenID)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"response": stats,
-	})
+	f := excelize.NewFile()
+	defer f.Close()
+
+	err = f.SetSheetName("Sheet1", "Обзор")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	_ = f.SetColWidth("Обзор", "A", "E", 32)
+
+	_ = f.SetCellValue("Обзор", "A1", "Название")
+	_ = f.SetCellValue("Обзор", "A2", "Выбранный период")
+	_ = f.SetCellValue("Обзор", "A3", "Предыдущий период")
+	_ = f.SetCellValue("Обзор", "A4", "Ссылка")
+	_ = f.SetCellValue("Обзор", "A5", "Оригинальная ссылка")
+
+	_ = f.SetCellValue("Обзор", "B1", shorten.Title)
+	_ = f.SetCellValue("Обзор", "B2", fmt.Sprintf("%s / %s", request.From, request.To))
+	_ = f.SetCellValue("Обзор", "B3", fmt.Sprintf("%s / %s", beforeRequest.From, beforeRequest.To))
+	_ = f.SetCellValue("Обзор", "B4", shorten.ShortURL)
+	_ = f.SetCellValue("Обзор", "B5", shorten.LongURL)
+
+	_ = f.SetCellValue("Обзор", "B7", "Предыдущий период")
+	_ = f.SetCellValue("Обзор", "C7", "Выбранный период")
+	_ = f.SetCellValue("Обзор", "D7", "Изменение")
+	_ = f.SetCellValue("Обзор", "E7", "Изменение %")
+	_ = f.SetCellValue("Обзор", "A8", "Переходы")
+
+	_ = f.SetCellValue("Обзор", "B8", totalBefore)
+	_ = f.SetCellValue("Обзор", "C8", total)
+	_ = f.SetCellFormula("Обзор", "D8", "C8-B8")
+	_ = f.SetCellFormula("Обзор", "E8", "IF(B8 = 0; 100; D8/B8*100)")
+
+	_, _ = f.NewSheet("Переходы")
+
+	_ = f.SetColWidth("Переходы", "A", "D", 32)
+
+	_ = f.SetCellValue("Переходы", "A1", "Дата")
+	_ = f.SetCellValue("Переходы", "B1", "Платформа")
+	_ = f.SetCellValue("Переходы", "C1", "Операционная система")
+	_ = f.SetCellValue("Переходы", "D1", "Источник перехода")
+
+	clicks, err := handler.statsService.SelectClicks(c, shortenID, request.From, request.To)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	for i, click := range clicks {
+		_ = f.SetCellValue("Переходы", fmt.Sprintf("A%d", i+2), click.Timestamp.Format("2006-01-02 15:04"))
+		_ = f.SetCellValue("Переходы", fmt.Sprintf("B%d", i+2), click.Platform)
+		_ = f.SetCellValue("Переходы", fmt.Sprintf("C%d", i+2), click.OS)
+		_ = f.SetCellValue("Переходы", fmt.Sprintf("D%d", i+2), click.Referer)
+	}
+
+	err = f.SaveAs(path)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	_, filename := filepath.Split(path)
+	c.FileAttachment(path, filename)
 }
