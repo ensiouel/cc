@@ -41,7 +41,7 @@ func (storage *shortenStorage) Create(ctx context.Context, shorten model.Shorten
 INSERT INTO 
     shortens (id, url, user_id, title, created_at, updated_at, tags) 
 VALUES 
-    ($1, $2, $3, $4, $5, $6)
+    ($1, $2, $3, $4, $5, $6, $7)
 `
 
 	_, err = storage.client.Exec(ctx, q,
