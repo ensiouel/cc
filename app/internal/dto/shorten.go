@@ -16,8 +16,13 @@ type CreateShorten struct {
 }
 
 type UpdateShorten struct {
-	Title string `json:"title"`
-	URL   string `json:"url"`
+	Title string   `json:"title,omitempty"`
+	URL   string   `json:"url,omitempty"`
+	Tags  []string `json:"tags,omitempty"`
+}
+
+type SelectShortens struct {
+	Tags []string `form:"tags,omitempty"`
 }
 
 type GetShortenStats struct {
@@ -27,33 +32,35 @@ type GetShortenStats struct {
 	Units int         `form:"units"`
 }
 
+type ExportShortenStats struct {
+	From string `form:"from"`
+	To   string `form:"to"`
+}
+
 func (createShorten CreateShorten) Validate() error {
 	if createShorten.URL == "" {
-		return apperror.ErrInvalidParams.SetMessage("url is required")
+		return apperror.InvalidParams.WithMessage("url is required")
 	}
 
 	if err := urlutils.Validate(createShorten.URL); err != nil {
-		return apperror.ErrInvalidParams.SetError(err).SetMessage("url is invalid")
+		return apperror.InvalidParams.WithError(err).WithMessage("url is invalid")
 	}
 
 	if _, err := base62.Decode(createShorten.Key); err != nil {
-		return apperror.ErrInvalidParams.SetError(err).SetMessage("key is invalid")
+		return apperror.InvalidParams.WithError(err).WithMessage("key is invalid")
 	}
 
 	return nil
 }
 
 func (updateShorten UpdateShorten) Validate() error {
-	if updateShorten.Title == "" {
-		return apperror.ErrInvalidParams.SetMessage("title is required")
+	if updateShorten.Title != "" && utf8.RuneCountInString(updateShorten.Title) > 100 {
+		return apperror.InvalidParams.WithMessage("title is to long")
 	}
 
-	if utf8.RuneCountInString(updateShorten.Title) > 100 {
-		return apperror.ErrInvalidParams.SetMessage("title is to long")
-	}
+	if updateShorten.URL != "" && urlutils.Validate(updateShorten.URL) != nil {
+		return apperror.InvalidParams.WithMessage("url is invalid")
 
-	if err := urlutils.Validate(updateShorten.URL); err != nil {
-		return apperror.ErrInvalidParams.SetError(err).SetMessage("url is invalid")
 	}
 
 	return nil
@@ -63,18 +70,33 @@ func (getShortenStats GetShortenStats) Validate() error {
 	var err error
 	_, err = time.Parse("2006-01-02", getShortenStats.From)
 	if err != nil {
-		return apperror.ErrInvalidParams.SetMessage("from is invalid, expected 2006-01-02")
+		return apperror.InvalidParams.WithMessage("from is invalid, expected 2006-01-02")
 	}
 
 	_, err = time.Parse("2006-01-02", getShortenStats.To)
 	if err != nil {
-		return apperror.ErrInvalidParams.SetMessage("to is invalid, expected 2006-01-02")
+		return apperror.InvalidParams.WithMessage("to is invalid, expected 2006-01-02")
 	}
 
 	switch getShortenStats.Unit {
 	case domain.UnitHour, domain.UnitDay, domain.UnitWeek, domain.UnitMonth, domain.UnitYear:
 	default:
-		return apperror.ErrInvalidParams.SetMessage("unit is invalid, expected (hour, day, week, month, year)")
+		return apperror.InvalidParams.WithMessage("unit is invalid, expected (hour, day, week, month, year)")
+	}
+
+	return nil
+}
+
+func (exportShortenStats ExportShortenStats) Validate() error {
+	var err error
+	_, err = time.Parse("2006-01-02", exportShortenStats.From)
+	if err != nil {
+		return apperror.InvalidParams.WithMessage("from is invalid, expected 2006-01-02")
+	}
+
+	_, err = time.Parse("2006-01-02", exportShortenStats.To)
+	if err != nil {
+		return apperror.InvalidParams.WithMessage("to is invalid, expected 2006-01-02")
 	}
 
 	return nil

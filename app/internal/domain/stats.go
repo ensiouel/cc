@@ -18,7 +18,7 @@ type Click struct {
 	ShortenID uint64    `json:"shorten_id"`
 	Platform  string    `json:"platform"`
 	OS        string    `json:"os"`
-	Referrer  string    `json:"referrer"`
+	Referer   string    `json:"referer"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -31,6 +31,7 @@ type Stats struct {
 
 type ClickMetric struct {
 	Total  int `json:"total"`
+	Diff   int `json:"diff"`
 	Values []struct {
 		Timestamp time.Time `json:"timestamp"`
 		Count     int       `json:"count"`
@@ -40,6 +41,7 @@ type ClickMetric struct {
 type Metric struct {
 	Name   string `json:"name"`
 	Total  int    `json:"total"`
+	Diff   int    `json:"diff"`
 	Values []struct {
 		Timestamp time.Time `json:"timestamp"`
 		Count     int       `json:"count"`

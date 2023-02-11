@@ -9,9 +9,10 @@ import (
 
 type Shorten struct {
 	ID        uint64    `db:"id"`
+	URL       string    `db:"url"`
 	UserID    uuid.UUID `db:"user_id"`
 	Title     string    `db:"title"`
-	URL       string    `db:"url"`
+	Tags      []string  `db:"tags"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
@@ -26,21 +27,18 @@ func (s Shorten) Domain(host string) domain.Shorten {
 		Title:     s.Title,
 		LongURL:   s.URL,
 		ShortURL:  host + "/" + id,
-		CreatedAt: s.CreatedAt,
-		UpdatedAt: s.UpdatedAt,
+		Tags:      s.Tags,
+		CreatedAt: s.CreatedAt.Unix(),
+		UpdatedAt: s.UpdatedAt.Unix(),
 	}
 }
 
-func (s Shortens) Domain(host string) []domain.Shorten {
-	if len(s) == 0 {
-		return []domain.Shorten{}
+func (shortens Shortens) Domain(host string) domain.Shortens {
+	res := make(domain.Shortens, len(shortens))
+
+	for i, shorten := range shortens {
+		res[i] = shorten.Domain(host)
 	}
 
-	shortens := make([]domain.Shorten, len(s))
-
-	for i, shorten := range s {
-		shortens[i] = shorten.Domain(host)
-	}
-
-	return shortens
+	return res
 }

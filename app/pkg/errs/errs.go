@@ -4,19 +4,19 @@ import (
 	"fmt"
 )
 
-type ErrorCode int
+type Type uint64
 
 type Error struct {
-	Code    ErrorCode `json:"code"`
-	Status  string    `json:"status"`
-	Message string    `json:"message"`
-	Scope   string    `json:"-"`
-	Err     error     `json:"-"`
+	Type    Type   `json:"code"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Scope   string `json:"-"`
+	Err     error  `json:"-"`
 }
 
-func (code ErrorCode) New(status string) *Error {
+func (t Type) New(status string) *Error {
 	return &Error{
-		Code:    code,
+		Type:    t,
 		Status:  status,
 		Message: "",
 		Err:     nil,
@@ -29,7 +29,7 @@ func (error Error) Is(target error) bool {
 		return false
 	}
 
-	return error.Code == err.Code
+	return error.Type == err.Type
 }
 
 func (error Error) Error() string {
@@ -48,7 +48,7 @@ func (error Error) Error() string {
 	return fmt.Sprintf("%s: %s: %s", error.Status, error.Scope, error.Message)
 }
 
-func (error Error) SetError(err error) Error {
+func (error Error) WithError(err error) Error {
 	if error.Err != nil {
 		error.Err = fmt.Errorf("%s: %w", error.Err, err)
 	} else {
@@ -58,13 +58,13 @@ func (error Error) SetError(err error) Error {
 	return error
 }
 
-func (error Error) SetScope(scope string) Error {
+func (error Error) WithScope(scope string) Error {
 	error.Scope = scope
 
 	return error
 }
 
-func (error Error) SetMessage(message string) Error {
+func (error Error) WithMessage(message string) Error {
 	error.Message = message
 
 	return error

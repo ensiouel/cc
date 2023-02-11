@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	encode    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	encode    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	encodeLen = uint64(len(encode))
 )
 

@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"cc/app/internal/transport/middleware/errs"
+	"cc/app/internal/transport/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"time"
@@ -17,13 +17,14 @@ func New(handlers ...Handler) *Server {
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
 		AllowHeaders:     []string{"*"},
+		ExposeHeaders:    []string{"*"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	router.Use(errs.Middleware())
+	router.Use(middleware.Error())
 
 	return &Server{handlers: handlers, router: router}
 }

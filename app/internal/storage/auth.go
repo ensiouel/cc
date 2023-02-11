@@ -41,7 +41,7 @@ VALUES
 		session.UpdatedAt,
 	)
 	if err != nil {
-		return apperror.ErrInternalError.SetError(err)
+		return apperror.Internal.WithError(err)
 	}
 
 	return
@@ -70,7 +70,7 @@ WHERE
 		session.UpdatedAt,
 	)
 	if err != nil {
-		return apperror.ErrInternalError.SetError(err)
+		return apperror.Internal.WithError(err)
 	}
 
 	return
@@ -89,10 +89,10 @@ WHERE
 	err = storage.client.Get(ctx, &session, q, refreshToken)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return session, apperror.ErrNotExists
+			return session, apperror.NotExists
 		}
 
-		return session, apperror.ErrInternalError.SetError(err)
+		return session, apperror.Internal.WithError(err)
 	}
 
 	return

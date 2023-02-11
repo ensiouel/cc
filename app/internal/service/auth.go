@@ -44,8 +44,8 @@ func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID,
 	}
 	err = service.storage.CreateSession(ctx, sssn)
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return session, apperr.SetScope("create session")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return session, apperr.WithScope("create session")
 		}
 
 		return
@@ -64,8 +64,8 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 	var sssn model.Session
 	sssn, err = service.storage.GetSessionByRefreshToken(ctx, request.RefreshToken)
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return session, apperr.SetScope("update session")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return session, apperr.WithScope("update session")
 		}
 
 		return
@@ -84,8 +84,8 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 
 	err = service.storage.UpdateSession(ctx, sssn)
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return session, apperr.SetScope("update session")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return session, apperr.WithScope("update session")
 		}
 
 		return
@@ -105,8 +105,8 @@ func (service *authService) ParseToken(payload string) (token *jwt.Token, err er
 		return []byte(service.signingKey), nil
 	})
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return token, apperr.SetScope("parse token")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return token, apperr.WithScope("parse token")
 		}
 
 		return
@@ -127,8 +127,8 @@ func createToken(userID uuid.UUID, signingKey string, expirationTime time.Time) 
 
 	accessToken, err = token.SignedString([]byte(signingKey))
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return accessToken, apperr.SetScope("create token")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return accessToken, apperr.WithScope("create token")
 		}
 
 		return

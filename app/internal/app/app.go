@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 type App struct {
@@ -46,14 +45,17 @@ func (app *App) Run() {
 		Password: app.cfg.Redis.Password,
 	})
 
+	tagStorage := storage.NewTagStorage(client)
+	tagService := service.NewTagService(tagStorage)
+
 	authStorage := storage.NewAuthStorage(client)
-	authService := service.NewAuthService(authStorage, app.cfg.Auth.SigningKey, 1*time.Hour)
+	authService := service.NewAuthService(authStorage, app.cfg.Auth.SigningKey, app.cfg.Auth.ExpirationTime)
 
 	statsStorage := storage.NewStatsStorage(client)
 	statsService := service.NewStatsService(statsStorage)
 
 	shortenStorage := storage.NewShortenStorage(client)
-	shortenService := service.NewShortenService(shortenStorage, app.cfg.Shorten.Host)
+	shortenService := service.NewShortenService(shortenStorage, app.cfg.Server.Host)
 
 	userStorage := storage.NewUserStorage(client)
 	userService := service.NewUserService(userStorage)
@@ -67,6 +69,7 @@ func (app *App) Run() {
 		shortenService,
 		authService,
 		statsService,
+		tagService,
 		cache,
 	)
 
@@ -74,6 +77,7 @@ func (app *App) Run() {
 		userService,
 		authService,
 		shortenService,
+		tagService,
 	)
 
 	go func() {

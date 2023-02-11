@@ -13,33 +13,33 @@ type Credentials struct {
 
 func (credentials Credentials) Validate() error {
 	if credentials.Name == "" {
-		return apperror.ErrInvalidParams.SetMessage("name is required")
+		return apperror.InvalidParams.WithMessage("name is required")
 	}
 
 	if credentials.Password == "" {
-		return apperror.ErrInvalidParams.SetMessage("password is required")
+		return apperror.InvalidParams.WithMessage("password is required")
 	}
 
 	if !utf8.ValidString(credentials.Name) {
-		return apperror.ErrInvalidParams.SetMessage("name is invalid")
+		return apperror.InvalidParams.WithMessage("name is invalid")
 	}
 
 	if !utf8.ValidString(credentials.Password) {
-		return apperror.ErrInvalidParams.SetMessage("password is invalid")
+		return apperror.InvalidParams.WithMessage("password is invalid")
 	}
 
 	nameLen := utf8.RuneCountInString(credentials.Name)
 	if nameLen < 3 {
-		return apperror.ErrInvalidParams.SetMessage("name is to short")
+		return apperror.InvalidParams.WithMessage("name is to short")
 	} else if nameLen > 20 {
-		return apperror.ErrInvalidParams.SetMessage("name is to long")
+		return apperror.InvalidParams.WithMessage("name is to long")
 	}
 
 	passwordLen := utf8.RuneCountInString(credentials.Password)
 	if passwordLen < 5 {
-		return apperror.ErrInvalidParams.SetMessage("password is to short")
+		return apperror.InvalidParams.WithMessage("password is to short")
 	} else if passwordLen > 50 {
-		return apperror.ErrInvalidParams.SetMessage("password is to long")
+		return apperror.InvalidParams.WithMessage("password is to long")
 	}
 
 	return nil

@@ -16,6 +16,8 @@ type StatsService interface {
 	CreateClick(ctx context.Context, request dto.CreateClick) error
 	CreateClickByUserAgent(ctx context.Context, timestamp time.Time, shortenID uint64, userAgent, referer, ip string) error
 
+	GetClicksSummary(ctx context.Context, shortenID uint64, from, to string) (total int64, err error)
+	SelectClicks(ctx context.Context, shortenID uint64, from, to string) ([]domain.Click, error)
 	GetStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (domain.Stats, error)
 }
 
@@ -32,14 +34,14 @@ func (service *statsService) CreateClick(ctx context.Context, request dto.Create
 		ShortenID: request.ShortenID,
 		Platform:  request.Platform,
 		OS:        request.OS,
-		Referrer:  request.Referer,
+		Referer:   request.Referer,
 		IP:        request.IP,
 		Timestamp: request.Timestamp,
 	}
 	err = service.storage.CreateClick(ctx, clck)
 	if err != nil {
-		if apperr, ok := apperror.Is(err, apperror.Internal); ok {
-			return apperr.SetScope("create click")
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return apperr.WithScope("create click")
 		}
 
 		return
@@ -93,10 +95,32 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 	return nil
 }
 
+func (service *statsService) GetClicksSummary(ctx context.Context, shortenID uint64, from, to string) (total int64, err error) {
+	return service.storage.GetClicksSummary(ctx, shortenID, from, to)
+}
+
+func (service *statsService) SelectClicks(ctx context.Context, shortenID uint64, from, to string) (clicks []domain.Click, err error) {
+	var clcks model.Clicks
+	clcks, err = service.storage.SelectClicks(ctx, shortenID, from, to)
+	if err != nil {
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return clicks, apperr.WithScope("SelectClicks")
+		}
+
+		return
+	}
+
+	return clcks.Domain(), nil
+}
+
 func (service *statsService) GetStats(ctx context.Context, shortenID uint64, request dto.GetShortenStats) (stats domain.Stats, err error) {
 	var clickMetric model.ClickMetric
 	clickMetric, err = service.storage.SelectClickMetric(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return stats, apperr.WithScope("GetStats.SelectClickMetric")
+		}
+
 		return
 	}
 	stats.Click = clickMetric.Domain()
@@ -104,6 +128,10 @@ func (service *statsService) GetStats(ctx context.Context, shortenID uint64, req
 	var platformMetrics model.Metrics
 	platformMetrics, err = service.storage.SelectPlatformMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return stats, apperr.WithScope("GetStats.SelectPlatformMetrics")
+		}
+
 		return
 	}
 	stats.Platform = platformMetrics.Domain()
@@ -111,6 +139,10 @@ func (service *statsService) GetStats(ctx context.Context, shortenID uint64, req
 	var osMetrics model.Metrics
 	osMetrics, err = service.storage.SelectOSMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return stats, apperr.WithScope("GetStats.SelectOSMetrics")
+		}
+
 		return
 	}
 	stats.OS = osMetrics.Domain()
@@ -118,6 +150,10 @@ func (service *statsService) GetStats(ctx context.Context, shortenID uint64, req
 	var refererMetrics model.Metrics
 	refererMetrics, err = service.storage.SelectRefererMetrics(ctx, shortenID, request.From, request.To, request.Unit, request.Units)
 	if err != nil {
+		if apperr, ok := apperror.Is(err, apperror.TypeInternal); ok {
+			return stats, apperr.WithScope("GetStats.SelectRefererMetrics")
+		}
+
 		return
 	}
 	stats.Referer = refererMetrics.Domain()
