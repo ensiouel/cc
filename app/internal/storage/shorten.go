@@ -39,7 +39,7 @@ func NewShortenStorage(client postgres.Client) ShortenStorage {
 func (storage *shortenStorage) Create(ctx context.Context, shorten model.Shorten) (err error) {
 	q := `
 INSERT INTO 
-    shortens (id, url, user_id, title, created_at, updated_at) 
+    shortens (id, url, user_id, title, created_at, updated_at, tags) 
 VALUES 
     ($1, $2, $3, $4, $5, $6)
 `
@@ -51,6 +51,7 @@ VALUES
 		shorten.Title,
 		shorten.CreatedAt,
 		shorten.UpdatedAt,
+		shorten.Tags,
 	)
 	if err != nil {
 		return apperror.Internal.WithError(err)
