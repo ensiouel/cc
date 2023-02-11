@@ -97,6 +97,7 @@ func (service *shortenService) Create(ctx context.Context, userID uuid.UUID, req
 		UserID:    userID,
 		Title:     request.Title,
 		URL:       request.URL,
+		Tags:      []string{},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
