@@ -10,3 +10,5 @@ RUN go mod download
 COPY ./app ./
 
 RUN go build -o /cc cmd
+
+CMD [ "/cc" ]
