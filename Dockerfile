@@ -2,13 +2,10 @@ FROM golang
 
 WORKDIR /build
 
-ADD go.mod .
-ADD go.sum .
+ADD . ./
 
 RUN go mod download
 
-COPY ./app .
-
-RUN go build -o cc ./cmd
+RUN go build -o /cc app/cmd
 
 CMD [ "/cc" ]
