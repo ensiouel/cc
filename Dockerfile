@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY ./app/ ./
 
-CMD ["ls"]
+RUN ls
 
 RUN go build -o cc /cmd
 
