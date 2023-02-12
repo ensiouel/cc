@@ -8,7 +8,7 @@ RUN go mod tidy
 RUN go mod download
 RUN go build -o cc
 
-RUN ls -a
+RUN dir -s
 
 COPY сс /app
 
