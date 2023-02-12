@@ -11,6 +11,6 @@ COPY ./app/ ./
 
 RUN ls
 
-RUN go build -o cc cmd
+RUN go build -o cc ./cmd
 
 CMD [ "./cc" ]
