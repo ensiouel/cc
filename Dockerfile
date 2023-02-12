@@ -1,14 +1,16 @@
 FROM golang
 
-WORKDIR /app
+ADD . /build
 
-COPY go.mod ./
-COPY go.sum ./
+WORKDIR /build/app/cmd/
 
+RUN go mod tidy
 RUN go mod download
 
-COPY ./app ./
+RUN go build -o cc
 
-RUN go build -o /cc cmd
+COPY /build/app/cmd/cc /app/
 
-CMD [ "/cc" ]
+WORKDIR /app
+
+ENTRYPOINT ["./cc"]
