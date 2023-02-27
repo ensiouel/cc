@@ -243,6 +243,7 @@ func (handler *ShortenHandler) GetShortenStats(c *gin.Context) {
 	})
 }
 
+// ExportShortenStats TODO: move to the service layer
 func (handler *ShortenHandler) ExportShortenStats(c *gin.Context) {
 	var request dto.ExportShortenStats
 	if err := c.BindQuery(&request); err != nil {
