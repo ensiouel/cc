@@ -5,14 +5,12 @@ import (
 )
 
 const (
-	TypeUnknown errs.Type = iota
-	TypeInternal
+	TypeInternal errs.Type = iota
 	TypeNotExists
 	TypeAlreadyExists
 	TypeInvalidParams
 	TypeInvalidCredentials
 	TypeUnauthorized
-	TypeNotOwned
 )
 
 func Is(target error, code errs.Type) (err errs.Error, ok bool) {
@@ -29,12 +27,10 @@ func Is(target error, code errs.Type) (err errs.Error, ok bool) {
 }
 
 var (
-	Unknown            = TypeUnknown.New("unknown error")
 	Internal           = TypeInternal.New("internal error")
 	NotExists          = TypeNotExists.New("not exists")
 	AlreadyExists      = TypeAlreadyExists.New("already exists")
 	InvalidParams      = TypeInvalidParams.New("invalid params")
 	InvalidCredentials = TypeInvalidCredentials.New("invalid credentials")
 	Unauthorized       = TypeUnauthorized.New("unauthorized")
-	NotOwned           = TypeNotOwned.New("not owned")
 )

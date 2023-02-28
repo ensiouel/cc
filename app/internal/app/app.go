@@ -44,6 +44,10 @@ func (app *App) Run() {
 		Addr:     app.cfg.Redis.Addr,
 		Password: app.cfg.Redis.Password,
 	})
+	ping := cache.Ping(ctx)
+	if err = ping.Err(); err != nil {
+		log.Fatal(err)
+	}
 
 	tagStorage := storage.NewTagStorage(client)
 	tagService := service.NewTagService(tagStorage)
