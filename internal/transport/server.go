@@ -7,6 +7,7 @@ import (
 	"github.com/chenjiandongx/ginprom"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type Server struct {
@@ -23,6 +24,14 @@ func New() *Server {
 
 	router.Use(
 		cors.New(corsConfig),
+		func(c *gin.Context) {
+			if c.Request.URL.Path == "/favicon.ico" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+
+			c.Next()
+		},
 		ginprom.PromMiddleware(&ginprom.PromOpts{
 			EndpointLabelMappingFn: func(c *gin.Context) string {
 				return c.FullPath()
