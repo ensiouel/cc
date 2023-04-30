@@ -1,6 +1,6 @@
 .idea
-uploads
-playground
+/uploads/
+/playground/
 
 # Binaries for programs and plugins
 *.exe
@@ -20,3 +20,4 @@ playground
 
 # Go workspace file
 go.work
+
