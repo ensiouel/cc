@@ -1,11 +1,31 @@
-FROM golang
+FROM golang:1.20.3-alpine AS builder
+
+LABEL stage=gobuilder
+
+ENV CGO_ENABLED 0
+
+RUN apk update --no-cache && apk add --no-cache tzdata
 
 WORKDIR /build
 
-ADD . ./
+ADD go.mod .
+ADD go.sum .
 
 RUN go mod download
 
-RUN go build -o /cc ./app/cmd
+COPY . .
 
-CMD [ "/cc" ]
+RUN go build -ldflags="-s -w" -o /cc cmd/main.go
+
+FROM alpine:latest
+
+COPY --from=builder /usr/share/zoneinfo/Europe/Moscow /usr/share/zoneinfo/Europe/Moscow
+ENV TZ Europe/Moscow
+
+WORKDIR /app
+
+COPY --from=builder /cc /app/cc
+COPY --from=builder /build/migration /app/migration
+COPY --from=builder /build/uploads /app/uploads
+
+CMD ["./cc"]
