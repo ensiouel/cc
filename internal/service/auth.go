@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cc/internal/config"
 	"cc/internal/domain"
 	"cc/internal/dto"
 	"cc/internal/model"
@@ -19,20 +20,19 @@ type AuthService interface {
 }
 
 type authService struct {
-	storage      storage.AuthStorage
-	signingKey   string
-	expirationAt time.Duration
+	storage storage.AuthStorage
+	config  config.Auth
 }
 
-func NewAuthService(storage storage.AuthStorage, signingKey string, expirationAt time.Duration) AuthService {
-	return &authService{storage: storage, signingKey: signingKey, expirationAt: expirationAt}
+func NewAuthService(storage storage.AuthStorage, config config.Auth) AuthService {
+	return &authService{storage: storage, config: config}
 }
 
 func (service *authService) CreateSession(ctx context.Context, userID uuid.UUID, ip string) (session domain.Session, err error) {
 	now := time.Now()
 
 	var accessToken string
-	accessToken, err = createToken(userID, service.signingKey, now.Add(service.expirationAt))
+	accessToken, err = createToken(userID, service.config.SigningKey, now.Add(service.config.ExpirationAt))
 
 	sssn := model.Session{
 		ID:           uuid.New(),
@@ -74,7 +74,7 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 	now := time.Now()
 
 	var accessToken string
-	accessToken, err = createToken(sssn.UserID, service.signingKey, now.Add(service.expirationAt))
+	accessToken, err = createToken(sssn.UserID, service.config.SigningKey, now.Add(service.config.ExpirationAt))
 	if err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (service *authService) UpdateSession(ctx context.Context, request dto.Refre
 
 func (service *authService) ParseToken(payload string) (token *jwt.Token, err error) {
 	token, err = jwt.ParseWithClaims(payload, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(service.signingKey), nil
+		return []byte(service.config.SigningKey), nil
 	})
 	if err != nil {
 		if apperr, ok := apperror.Is(err, apperror.Internal); ok {

@@ -1,76 +1,90 @@
 version: "3.9"
 
 services:
-  postgres:
-    container_name: cc-postgres
-    image: postgres:latest
-    ports:
-      - "5432:5432"
-    networks:
-      - local
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    restart: on-failure
-  redis:
-    container_name: cc-redis
-    image: redis:latest
-    ports:
-      - "6380:6379"
-    networks:
-      - local
-    volumes:
-      - redis-data:/var/lib/redis
-    restart: on-failure
-  prometheus:
-    container_name: cc-prometheus
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    networks:
-      - local
-    volumes:
-      - ./prometheus:/etc/prometheus
-      - prometheus-data:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --web.config.file=/etc/prometheus/web.yml
-    restart: on-failure
-  postgres-exporter:
-    container_name: cc-postgres-exporter
-    image: prometheuscommunity/postgres-exporter
-    ports:
-      - "9187:9187"
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
-    depends_on:
-      - postgres
-      - prometheus
-    networks:
-      - local
-    restart: on-failure
   app:
-    container_name: cc
-    build: .
-    depends_on:
-      - postgres
-      - redis
+    build:
+      context: .
+      dockerfile: Dockerfile.app
     ports:
       - "8081:8080"
     networks:
       - local
     env_file:
       - .env
+    depends_on:
+      - goose
+      - redis
     restart: on-failure
+  goose:
+    build:
+      context: .
+      dockerfile: Dockerfile.goose
+    networks:
+      - local
+    volumes:
+      - "./migration:/migration"
+    command:
+      [ "goose", "-dir", "/migration", "postgres", "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable", "up" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    networks:
+      - local
+    volumes:
+      - "postgres-data:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres", "-d", "${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: on-failure
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - local
+    volumes:
+      - "redis-data:/var/lib/redis"
+    restart: on-failure
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    networks:
+      - local
+    volumes:
+      - "./prometheus:/etc/prometheus"
+      - "prometheus-data:/prometheus"
+    command:
+      [ "--config.file=/etc/prometheus/prometheus.yml", "--web.config.file=/etc/prometheus/web.yml" ]
+    restart: on-failure
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    ports:
+      - "9187:9187"
+    networks:
+      - local
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
+    depends_on:
+      - goose
+      - prometheus
+    restart: on-failure
+
+networks:
+  local:
+    driver: bridge
 
 volumes:
   postgres-data:
   redis-data:
   prometheus-data:
-
-networks:
-  local:
-    driver: bridge

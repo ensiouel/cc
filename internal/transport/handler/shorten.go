@@ -9,6 +9,7 @@ import (
 	"cc/pkg/urlutils"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
@@ -224,4 +225,6 @@ func (handler *ShortenHandler) ExportShortenStats(c *gin.Context) {
 
 	_, filename := filepath.Split(path)
 	c.FileAttachment(path, filename)
+
+	os.Remove(path)
 }

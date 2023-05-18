@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v9"
-	"github.com/pressly/goose"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
@@ -34,17 +33,12 @@ func (app *App) Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pgConfig := postgres.Config{
+	pgClient, err := postgres.NewClient(ctx, postgres.Config{
 		Host: app.config.Postgres.Host, Port: app.config.Postgres.Port, DB: app.config.Postgres.DB,
 		User: app.config.Postgres.User, Password: app.config.Postgres.Password,
-	}
-	pgClient, err := postgres.NewClient(ctx, pgConfig)
+	})
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if err = migrate("up", "migration", pgConfig.String()); err != nil {
-		log.Fatalf("migration error: %s\n", err)
 	}
 
 	cache := redis.NewClient(&redis.Options{
@@ -61,8 +55,7 @@ func (app *App) Run() {
 	authStorage := storage.NewAuthStorage(pgClient)
 	authService := service.NewAuthService(
 		authStorage,
-		app.config.Auth.SigningKey,
-		app.config.Auth.ExpirationAt,
+		app.config.Auth,
 	)
 
 	statsStorage := storage.NewStatsStorage(pgClient)
@@ -128,18 +121,4 @@ func (app *App) Run() {
 	}()
 
 	<-ctx.Done()
-}
-
-func migrate(command string, dir string, dbstring string) error {
-	db, err := goose.OpenDBWithDriver("postgres", dbstring)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	if err = goose.Run(command, db, dir); err != nil {
-		return err
-	}
-
-	return nil
 }

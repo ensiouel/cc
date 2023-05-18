@@ -17,15 +17,15 @@ COPY . .
 
 RUN go build -ldflags="-s -w" -o /cc cmd/main.go
 
+
 FROM alpine:latest
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /usr/share/zoneinfo/Europe/Moscow /usr/share/zoneinfo/Europe/Moscow
 ENV TZ Europe/Moscow
 
 WORKDIR /app
 
 COPY --from=builder /cc /app/cc
-COPY --from=builder /build/migration /app/migration
-COPY --from=builder /build/uploads /app/uploads
 
 CMD ["./cc"]

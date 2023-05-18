@@ -252,13 +252,12 @@ func (service *statsService) ExportStats(ctx context.Context, shorten domain.Sho
 	}
 
 	path := filepath.Join(
-		"uploads",
 		fmt.Sprintf("%s_%s_%s_%d",
 			shorten.ID,
 			from.Format("20060102"),
 			to.Format("20060102"),
 			time.Now().Round(1*time.Hour).Unix(),
-		)+".xlsx",
+		) + ".xlsx",
 	)
 
 	err = f.SaveAs(path)
