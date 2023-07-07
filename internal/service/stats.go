@@ -9,10 +9,11 @@ import (
 	"cc/pkg/base62"
 	"context"
 	"fmt"
+	"github.com/goware/urlx"
 	"github.com/mileusna/useragent"
 	"github.com/xuri/excelize/v2"
-	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -74,9 +75,19 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 		os = "Other"
 	}
 
-	refererURL, _ := url.Parse(referer)
-	if refererURL.Host == "" {
-		refererURL.Host = "Other"
+	if referer == "" {
+		referer = "Other"
+	} else {
+		referer, _ = urlx.NormalizeString(referer)
+		referer = strings.Replace(referer, "www.", "", 1)
+
+		parse, err := urlx.Parse(referer)
+		if err != nil {
+			return
+		}
+		parse.RawQuery = ""
+
+		referer = parse.String()
 	}
 
 	if userAgent.Bot || (platform == "Other" && os == "Other") {
@@ -87,7 +98,7 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 		ShortenID: shortenID,
 		Platform:  platform,
 		OS:        os,
-		Referer:   refererURL.Host,
+		Referer:   referer,
 		IP:        ip,
 		Timestamp: timestamp,
 	})
