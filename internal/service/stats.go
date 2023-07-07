@@ -81,10 +81,7 @@ func (service *statsService) CreateClickByUserAgent(ctx context.Context, timesta
 		referer, _ = urlx.NormalizeString(referer)
 		referer = strings.Replace(referer, "www.", "", 1)
 
-		parse, err := urlx.Parse(referer)
-		if err != nil {
-			return
-		}
+		parse, _ := urlx.Parse(referer)
 		parse.RawQuery = ""
 
 		referer = parse.String()
